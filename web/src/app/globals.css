@@ -1,0 +1,32 @@
+:root {
+  --lilac-50: #f2edff;
+  --ink: #2a1647;
+  --violet: #9047ff;
+  --font-serif: var(--font-instrument-serif), "Times New Roman", serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-sans: var(--font-inter-tight), system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--lilac-50);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font: inherit;
+}
+
+::selection {
+  background: var(--violet);
+  color: #fff;
+}
