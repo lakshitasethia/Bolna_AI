@@ -1,17 +1,32 @@
 "use client";
 
+import Lenis from "lenis";
+import "lenis/dist/lenis.css";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RukoScene } from "./scene/RukoScene";
+import type { RukoWorld } from "./scene/RukoWorld";
 import { Ambient, speakGreeting } from "./scene/ambient";
+import { NUMBERS, SCAMS, STEPS } from "./content";
 import styles from "./Experience.module.css";
 
 type Phase = "loading" | "gate" | "entered";
 
-const HEADLINE = ["You pay anyone", "who called you,", "call Ruko"];
+/** Scroll length of each camera move, in viewport heights. */
+const SEGMENT_VH = 150;
+const STAGES = 5;
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const smooth = (a: number, b: number, v: number) => {
+  const t = clamp01((v - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
 
 export default function Experience() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sceneRef = useRef<RukoScene | null>(null);
+  const rootRef = useRef<HTMLElement>(null);
+  const journeyRef = useRef<HTMLDivElement>(null);
+  const flashRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<RukoWorld | null>(null);
+  const lenisRef = useRef<Lenis | null>(null);
   const ambientRef = useRef<Ambient | null>(null);
   const stopVoiceRef = useRef<(() => void) | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -20,46 +35,116 @@ export default function Experience() {
   const [talking, setTalking] = useState(false);
   const [bubble, setBubble] = useState(false);
 
+  // Boot: build the 3D world, run the loader, drive everything from scroll.
   useEffect(() => {
     let cancelled = false;
     let ready = false;
     const started = performance.now();
 
-    Promise.all([import("./scene/RukoScene"), document.fonts.ready]).then(([mod]) => {
+    history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+    const lenis = new Lenis({ autoRaf: true, anchors: true, lerp: 0.085 });
+    lenis.stop();
+    lenisRef.current = lenis;
+
+    Promise.all([import("./scene/RukoWorld"), document.fonts.ready]).then(([mod]) => {
       if (cancelled || !canvasRef.current) return;
-      sceneRef.current = new mod.RukoScene(canvasRef.current);
+      worldRef.current = new mod.RukoWorld(canvasRef.current);
       ready = true;
     });
 
-    // Progress eases towards 90% while the scene builds, then completes.
-    let raf = 0;
+    let loaderRaf = 0;
     let value = 0;
-    const step = () => {
-      const minTimeDone = performance.now() - started > 2200;
-      const target = ready && minTimeDone ? 100 : 90;
-      value += (target - value) * (ready && minTimeDone ? 0.12 : 0.03);
+    const loaderStep = () => {
+      const done = ready && performance.now() - started > 2200;
+      value += ((done ? 100 : 90) - value) * (done ? 0.12 : 0.03);
       setProgress(Math.min(100, Math.round(value)));
       if (Math.round(value) >= 100) {
         setTimeout(() => !cancelled && setPhase("gate"), 250);
         return;
       }
-      raf = requestAnimationFrame(step);
+      loaderRaf = requestAnimationFrame(loaderStep);
     };
-    raf = requestAnimationFrame(step);
+    loaderRaf = requestAnimationFrame(loaderStep);
+
+    let scrollRaf = 0;
+    const onFrame = () => {
+      scrollRaf = requestAnimationFrame(onFrame);
+      const journey = journeyRef.current;
+      const root = rootRef.current;
+      if (!journey || !root) return;
+      const vh = window.innerHeight;
+      const y = lenis.scroll;
+      const length = journey.offsetHeight - vh;
+      const s = clamp01(y / length) * STAGES;
+      worldRef.current?.setStage(s);
+      worldRef.current?.setActive(y < journey.offsetHeight);
+
+      // Text panels: leave early in a segment, arrive late, glitch in between.
+      const k = Math.min(Math.floor(s), STAGES - 1);
+      const f = s - k;
+      root.querySelectorAll<HTMLElement>("[data-panel]").forEach((panel) => {
+        const i = Number(panel.dataset.panel);
+        let o = 0;
+        if (i === k) o = 1 - smooth(0.08, 0.32, f);
+        else if (i === k + 1) o = smooth(0.78, 0.98, f);
+        if (s >= STAGES) o = 0;
+        panel.style.setProperty("--o", o.toFixed(3));
+        panel.style.setProperty("--g", (o > 0 && o < 1 ? 1 - o : 0).toFixed(3));
+        panel.style.visibility = o > 0.001 ? "visible" : "hidden";
+      });
+      if (flashRef.current) {
+        const flash = k === STAGES - 1 ? smooth(0.55, 0.95, f) : 0;
+        flashRef.current.style.opacity = String(s >= STAGES ? 1 : flash);
+      }
+      root.dataset.theme = s > STAGES - 0.25 ? "light" : "dark";
+
+      // Words light up as their paragraph scrolls through the viewport.
+      root.querySelectorAll<HTMLElement>("[data-reveal]").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        el.style.setProperty("--p", clamp01((vh * 0.85 - r.top) / (r.height + vh * 0.35)).toFixed(3));
+      });
+
+      // Lists highlight the row nearest the middle of the screen.
+      root.querySelectorAll<HTMLElement>("[data-list]").forEach((list) => {
+        let best: HTMLElement | null = null;
+        let bestDist = Infinity;
+        list.querySelectorAll<HTMLElement>("[data-item]").forEach((item) => {
+          const r = item.getBoundingClientRect();
+          const dist = Math.abs(r.top + r.height / 2 - vh * 0.5);
+          item.style.setProperty("--d", clamp01(dist / (vh * 0.45)).toFixed(3));
+          item.removeAttribute("data-active");
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = item;
+          }
+        });
+        (best as HTMLElement | null)?.setAttribute("data-active", "");
+      });
+
+      // Cards and blocks rise in once.
+      root.querySelectorAll<HTMLElement>("[data-rise]:not([data-in])").forEach((el) => {
+        if (el.getBoundingClientRect().top < vh * 0.92) el.setAttribute("data-in", "");
+      });
+    };
+    scrollRaf = requestAnimationFrame(onFrame);
 
     return () => {
       cancelled = true;
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(loaderRaf);
+      cancelAnimationFrame(scrollRaf);
+      lenis.destroy();
       stopVoiceRef.current?.();
       ambientRef.current?.stop();
-      sceneRef.current?.dispose();
-      sceneRef.current = null;
+      worldRef.current?.dispose();
+      worldRef.current = null;
     };
   }, []);
 
   const enter = useCallback((withSound: boolean) => {
     setPhase("entered");
-    sceneRef.current?.intro();
+    worldRef.current?.intro();
+    setTimeout(() => lenisRef.current?.start(), 1600);
     if (withSound) {
       ambientRef.current ??= new Ambient();
       ambientRef.current.start();
@@ -79,16 +164,16 @@ export default function Experience() {
     if (talking) {
       stopVoiceRef.current?.();
       setTalking(false);
-      sceneRef.current?.setVoiceLevel(0);
+      worldRef.current?.setVoiceLevel(0);
       return;
     }
     setTalking(true);
     setBubble(false);
     stopVoiceRef.current = speakGreeting(
-      (level) => sceneRef.current?.setVoiceLevel(level),
+      (level) => worldRef.current?.setVoiceLevel(level),
       () => {
         setTalking(false);
-        sceneRef.current?.setVoiceLevel(0);
+        worldRef.current?.setVoiceLevel(0);
       },
     );
   };
@@ -97,11 +182,12 @@ export default function Experience() {
   const pct = String(progress).padStart(3, "0");
 
   return (
-    <main className={styles.root} data-phase={phase}>
+    <main ref={rootRef} className={styles.root} data-phase={phase} data-theme="dark">
       <canvas ref={canvasRef} className={styles.canvas} aria-hidden />
       <div className={styles.vignette} aria-hidden />
+      <div ref={flashRef} className={styles.flash} aria-hidden />
 
-      {/* Loader + entry gate */}
+      {/* ---------- Loader + entry gate ---------- */}
       <section className={styles.loader} aria-hidden={entered}>
         <div className={styles.loaderCenter}>
           <Logo className={styles.loaderLogo} />
@@ -111,7 +197,6 @@ export default function Experience() {
             In Hindi, Hinglish &amp; your language.
           </p>
         </div>
-
         {phase === "loading" ? (
           <div className={styles.progress}>
             <div className={styles.track}>
@@ -129,7 +214,7 @@ export default function Experience() {
           </div>
         ) : (
           <div className={styles.gate}>
-            <button className={styles.enterSound} onClick={() => enter(true)}>
+            <button className={styles.glassBtn} onClick={() => enter(true)}>
               <SpeakerIcon /> Enter with sound
             </button>
             <button className={styles.enterMute} onClick={() => enter(false)}>
@@ -139,13 +224,15 @@ export default function Experience() {
         )}
       </section>
 
-      {/* Hero */}
+      {/* ---------- Nav ---------- */}
       <header className={styles.nav}>
-        <Logo className={styles.navLogo} />
+        <a href="#top" className={styles.navLogo} aria-label="Ruko home">
+          <Logo />
+        </a>
         <nav className={styles.links}>
           <a href="#how">How it works</a>
-          <a href="#families">For families</a>
-          <a href="#problem">The problem</a>
+          <a href="#scams">Scams we catch</a>
+          <a href="#numbers">The numbers</a>
         </nav>
         <button className={styles.lang} type="button">
           <GlobeIcon /> हिंदी / EN
@@ -158,26 +245,250 @@ export default function Experience() {
         </button>
       </header>
 
-      <section className={styles.hero}>
-        <p className={`${styles.mono} ${styles.kicker}`}>
-          A voice AI that stops phone scams
-          <br />
-          for our parents, in their language
-        </p>
-        <h1 className={styles.headline}>
-          <span className={styles.italic}>
-            <span className={styles.line}>
-              <span style={{ transitionDelay: "0.9s" }}>Before</span>
+      {/* ---------- 3D journey: fixed panels over the scene ---------- */}
+      <div ref={journeyRef} id="top" className={styles.journey} style={{ height: `${STAGES * SEGMENT_VH + 100}vh` }}>
+        <section data-panel="0" className={`${styles.panel} ${styles.heroPanel}`}>
+          <p className={`${styles.mono} ${styles.kicker}`}>
+            A voice AI that stops phone scams
+            <br />
+            for our parents, in their language
+          </p>
+          <h1 className={styles.headline}>
+            <span className={styles.italicLead}>
+              <span className={styles.line}>
+                <span style={{ transitionDelay: "0.9s" }}>Before</span>
+              </span>
             </span>
-          </span>
-          {HEADLINE.map((text, i) => (
-            <span key={text} className={styles.line}>
-              <span style={{ transitionDelay: `${1.05 + i * 0.12}s` }}>{text}</span>
-            </span>
-          ))}
-        </h1>
-      </section>
+            {["You pay anyone", "who called you,", "call Ruko"].map((text, i) => (
+              <span key={text} className={styles.line}>
+                <span style={{ transitionDelay: `${1.05 + i * 0.12}s` }}>{text}</span>
+              </span>
+            ))}
+          </h1>
+        </section>
 
+        <section data-panel="1" className={`${styles.panel} ${styles.panelLeftTop}`}>
+          <span className={styles.tag}>The problem</span>
+          <h2 className={styles.panelTitle}>
+            <em>Every</em> second
+            <br />
+            <span className={styles.indent}>
+              <ReturnIcon className={styles.titleArrow} />
+              244 scam calls
+            </span>
+            <br />
+            ring someone
+            <br />
+            in India
+          </h2>
+          <p className={`${styles.mono} ${styles.panelNote}`}>
+            770 crore fraud calls in 2025. ₹22,495 crore lost.
+            <br />
+            The people losing most: our parents.
+          </p>
+        </section>
+
+        <section data-panel="2" className={`${styles.panel} ${styles.panelBottomSplit}`}>
+          <div>
+            <span className={styles.tag}>Why it works</span>
+            <h2 className={styles.panelTitle}>
+              Scams live
+              <br />
+              <span className={styles.indent}>
+                <ReturnIcon className={styles.titleArrow} />
+                in silence
+              </span>
+            </h2>
+          </div>
+          <p className={`${styles.mono} ${styles.panelNote}`}>
+            “Don’t hang up. Don’t tell anyone.” Isolation is the weapon.
+            <br />
+            Every rescue we found began with a second voice.
+          </p>
+        </section>
+
+        <section data-panel="3" className={`${styles.panel} ${styles.panelRight}`}>
+          <span className={styles.tag}>The fix</span>
+          <h2 className={styles.panelTitle}>
+            A second <em>Voice</em>
+            <br />
+            in the moment
+          </h2>
+          <p className={`${styles.mono} ${styles.panelNote}`}>
+            Papa calls Ruko. Ruko listens in Hindi, asks what a bank
+            <br />
+            manager would, spots the script, and says: hang up.
+          </p>
+        </section>
+
+        <section data-panel="4" className={`${styles.panel} ${styles.heroPanel}`}>
+          <div className={styles.kickerBlock}>
+            <span className={styles.tag}>For families</span>
+            <p className={styles.mono}>
+              The moment Ruko spots a scam,
+              <br />
+              your family knows
+            </p>
+          </div>
+          <h2 className={`${styles.headline} ${styles.headlineStatic}`}>
+            <span className={styles.italicLead}>
+              We <ReturnIcon className={styles.leadArrow} />
+            </span>
+            Never let our
+            <br />
+            parents face it
+            <br />
+            alone
+          </h2>
+        </section>
+      </div>
+
+      {/* ---------- Content ---------- */}
+      <div className={styles.content}>
+        <section id="how" className={styles.how}>
+          <div className={styles.howLeft}>
+            <p className={styles.reveal} data-reveal>
+              <span className={styles.tagInline}>How it works</span>
+              <ReturnIcon className={styles.revealArrow} />
+              {splitWords(
+                "Papa gets a call from a ‘CBI officer’. Before he pays a rupee, he calls Ruko. Ruko calms him in Hindi, asks four simple questions, recognises the script, tells him to hang up — and messages his son on Telegram. If money already left, Ruko walks him through 1930 and the bank freeze inside the golden hour.",
+              )}
+            </p>
+            <button className={styles.glassBtn} onClick={talk} data-rise>
+              Try Ruko now <ReturnIcon />
+            </button>
+          </div>
+          <ol className={styles.steps} data-list>
+            {STEPS.map((step, i) => (
+              <li key={step} data-item>
+                <span className={styles.stepNum}>({String(i + 1).padStart(3, "0")})</span>
+                <ReturnIcon className={styles.stepArrow} />
+                <span className={styles.stepLabel}>{step}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section id="scams" className={styles.scams}>
+          <h2 className={styles.spreadTitle}>
+            <span>Scripts</span>
+            <em>Ruko</em>
+            <span className={styles.dash} aria-hidden />
+            <span>recognises</span>
+          </h2>
+          <p className={`${styles.mono} ${styles.spreadNote}`}>
+            The same few scripts drain crores. Ruko knows every
+            <br />
+            one of them, in every language your parents speak
+          </p>
+          <div className={styles.cards}>
+            {SCAMS.map((scam, i) => (
+              <article key={scam.name} className={styles.card} data-rise style={{ "--i": i } as React.CSSProperties}>
+                <div className={styles.cardArt} data-tone={scam.tone}>
+                  <dl className={styles.cardMeta}>
+                    <dt>Script</dt>
+                    <dd>/{String(i + 1).padStart(2, "0")}</dd>
+                    <dt>Starts as</dt>
+                    <dd>{scam.starts}</dd>
+                    <dt>Moves to</dt>
+                    <dd>{scam.moves}</dd>
+                    <dt>Asks for</dt>
+                    <dd>{scam.asks}</dd>
+                    <dt>Ruko says</dt>
+                    <dd>Hang up.</dd>
+                  </dl>
+                  <p className={styles.cardQuote}>“{scam.quote}”</p>
+                </div>
+                <p className={styles.cardTags}>{scam.tags}</p>
+                <h3 className={styles.cardName}>{scam.name}</h3>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="numbers" className={styles.numbers}>
+          <div className={styles.numbersHead}>
+            <h2 className={styles.bigTitle}>
+              The numbers
+              <br />
+              don’t lie
+            </h2>
+            <p className={styles.mono}>
+              Every figure is from government data, courts
+              <br />
+              or published reports. Sources in our research
+            </p>
+            <span className={styles.tag}>Lost in 2025: ₹22,495 cr</span>
+          </div>
+          {NUMBERS.map((group) => (
+            <div key={group.source} className={styles.numberGroup} data-list>
+              <h3>
+                {group.source} <sup>[{group.rows.length}]</sup>
+              </h3>
+              <ul>
+                {group.rows.map(([label, value]) => (
+                  <li key={label} data-item>
+                    <span>{label}</span>
+                    <span className={styles.numberValue}>{value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+
+        <footer className={styles.footer}>
+          <div>
+            <span className={styles.tag}>Stay safe</span>
+            <h2 className={styles.bigTitle}>
+              <em>Let’s</em> make
+              <br />
+              <span className={styles.indent}>
+                <ReturnIcon className={styles.titleArrow} />
+                every parent
+              </span>
+              <br />
+              scam-proof
+            </h2>
+            <button className={styles.glassBtn} onClick={talk}>
+              Talk to Ruko <ReturnIcon />
+            </button>
+          </div>
+          <div className={styles.footerCols}>
+            <p className={`${styles.mono} ${styles.footerNote}`}>
+              Strange call right now? Hang up first.
+              <br />
+              Then call Ruko — or the national helpline, 1930.
+            </p>
+            <FooterCol
+              title="In an emergency"
+              items={[
+                ["Call 1930", "tel:1930"],
+                ["cybercrime.gov.in", "https://cybercrime.gov.in"],
+                ["Your bank’s fraud line", undefined],
+              ]}
+            />
+            <FooterCol
+              title="Pages"
+              items={[
+                ["Home", "#top"],
+                ["How it works", "#how"],
+                ["Scams we catch", "#scams"],
+                ["The numbers", "#numbers"],
+              ]}
+            />
+            <FooterCol title="Languages" items={[["Hindi · Hinglish", undefined], ["English", undefined], ["Tamil · Marathi", undefined]]} />
+            <FooterCol title="Built for" items={[["Bolna Buildathon", undefined], ["Symphony 2026", undefined]]} />
+          </div>
+          <div className={styles.footerBar}>
+            <span>© 2026 Ruko. Made in India.</span>
+            <span className={styles.mono}>Ruko. Socho. Action lo.</span>
+            <span>Privacy</span>
+          </div>
+        </footer>
+      </div>
+
+      {/* ---------- Assistant orb ---------- */}
       <div className={styles.assistant}>
         <p className={`${styles.bubble} ${bubble && !talking ? styles.bubbleOn : ""}`}>
           Namaste! Got a strange call? Tap me and tell me what happened.
@@ -189,6 +500,39 @@ export default function Experience() {
         />
       </div>
     </main>
+  );
+}
+
+function splitWords(text: string) {
+  const words = text.split(" ");
+  return words.map((word, i) => (
+    <span key={i} className={styles.word} style={{ "--i": (i / words.length).toFixed(3) } as React.CSSProperties}>
+      {word}{" "}
+    </span>
+  ));
+}
+
+function FooterCol({ title, items }: { title: string; items: [string, string | undefined][] }) {
+  return (
+    <div className={styles.footerCol}>
+      <h4>
+        {title} <span aria-hidden>↴</span>
+      </h4>
+      <ul>
+        {items.map(([label, href], i) => (
+          <li key={label}>
+            <span className={styles.footerIdx}>[{String(i + 1).padStart(2, "0")}]</span>
+            {href ? (
+              <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
+                {label} {href.startsWith("http") || href.startsWith("tel") ? "↗" : ""}
+              </a>
+            ) : (
+              <span>{label}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -227,9 +571,9 @@ function GlobeIcon() {
   );
 }
 
-function ReturnIcon() {
+function ReturnIcon({ className }: { className?: string }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
       <path d="M6 4v8a3 3 0 0 0 3 3h10M15 11l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );

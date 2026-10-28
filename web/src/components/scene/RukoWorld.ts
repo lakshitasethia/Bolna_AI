@@ -19,14 +19,29 @@ const PALETTE = {
   water: "#b49cec",
   glyphA: "#ff3fd8",
   glyphB: "#7a1cff",
-  glyphCore: "#ffd9fb",
+  glyphCore: "#ffe3fc",
   petal: "#4b2370",
 };
 
+type Vec3 = [number, number, number];
+type Stop = { cam: Vec3; look: Vec3; glyph: Vec3; scale: number };
+
+/**
+ * Camera stops along the scroll journey. Stop i pairs with text panel i;
+ * the last stop flies the camera through the particle ring.
+ */
+const STOPS: Stop[] = [
+  { cam: [0, 2.3, 10], look: [0, 3.6, -20], glyph: [0, 7.2, -20], scale: 1 },
+  { cam: [-3, 3.2, 3], look: [3, 4.6, -20], glyph: [6.5, 6.6, -17], scale: 0.85 },
+  { cam: [2, 1.6, -3], look: [-1.5, 6.4, -24], glyph: [-3.2, 8.8, -21], scale: 1.15 },
+  { cam: [-5, 2.4, -1], look: [-5, 4.2, -24], glyph: [-10.8, 6.8, -21], scale: 0.95 },
+  { cam: [0, 2.1, 5], look: [0, 4.9, -20], glyph: [0, 7.4, -18], scale: 1.05 },
+  { cam: [0, 7.4, -17.6], look: [0, 7.4, -40], glyph: [0, 7.4, -18], scale: 1.25 },
+];
+export const STAGE_COUNT = STOPS.length - 1;
+
 const color = (hex: string) => new THREE.Color(hex);
 
-// Height of the terrain: a grassy bank in front of the camera, a lake in the
-// middle, and rolling hills behind it.
 function terrainHeight(x: number, z: number) {
   const n = Math.sin(x * 0.35) * 0.18 + Math.sin(x * 0.11 + z * 0.3) * 0.25;
   if (z > 1.2) return THREE.MathUtils.smoothstep(z, 1.2, 2.6) * 0.35 + n * 0.3 - 0.25;
@@ -131,37 +146,64 @@ const GLYPH_VERT = /* glsl */ `
   uniform float uPixelRatio;
   uniform float uLevel;
   uniform float uReveal;
+  uniform float uMorph;
   uniform vec3 uMouse;
   uniform vec3 uColorA;
   uniform vec3 uColorB;
   uniform vec3 uCore;
+  attribute vec3 aShape1;
+  attribute vec3 aShape2;
+  attribute vec3 aShape3;
+  attribute vec3 aShape4;
+  attribute vec3 aScatter;
   attribute vec4 aRand;
   attribute float aKind;
-  attribute vec3 aScatter;
   varying vec3 vColor;
   varying float vAlpha;
+
+  vec3 shapeAt(float i) {
+    if (i < 0.5) return position;
+    if (i < 1.5) return aShape1;
+    if (i < 2.5) return aShape2;
+    if (i < 3.5) return aShape3;
+    return aShape4;
+  }
+
   void main() {
-    vec3 p = mix(aScatter, position, uReveal);
+    float k = floor(uMorph);
+    float f = uMorph - k;
+    float blend = smoothstep(0.0, 1.0, f);
+    vec3 shape = mix(shapeAt(k), shapeAt(min(k + 1.0, 4.0)), blend);
+
+    // Particles swirl outwards while travelling between shapes.
+    float travel = sin(f * 3.14159);
+    shape += vec3(sin(aRand.x * 31.0 + uTime), cos(aRand.y * 27.0 + uTime * 0.8), sin(aRand.z * 19.0)) * travel * 2.2;
+
+    vec3 p = mix(aScatter, shape, uReveal);
     float t = uTime * 0.7 + aRand.x * 6.2831;
     float jitter = 0.05 + aKind * 0.25;
     p += vec3(sin(t), cos(t * 1.3), sin(t * 0.7)) * jitter * (1.0 + uLevel * 5.0);
     p += normalize(p + 0.0001) * uLevel * (0.6 + aRand.z) * 0.9;
     if (aKind > 0.5) p.y += mod(uTime * 0.25 * (0.3 + aRand.y) + aRand.x * 8.0, 8.0) - 4.0;
 
+    // Cursor: particles near the pointer burst outwards and glow white-hot.
     vec3 d = p - uMouse;
-    float f = smoothstep(2.2, 0.0, length(d.xy));
-    p += normalize(d + vec3(0.0001)) * f * 1.4 * (0.4 + aRand.w);
+    float hover = smoothstep(2.8, 0.0, length(d.xy));
+    float swirl = aRand.w * 6.2831 + uTime * 2.0;
+    p += normalize(d + vec3(0.0001)) * hover * 1.6 * (0.4 + aRand.w);
+    p.z += hover * sin(swirl) * 1.2;
 
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
 
     float twinkle = 0.55 + 0.45 * sin(uTime * (2.0 + aRand.y * 4.0) + aRand.x * 40.0);
     gl_PointSize = uSize * (0.35 + aRand.z) * (0.75 + twinkle * 0.5) * uPixelRatio / -mv.z;
-    gl_PointSize *= 1.0 + uLevel * 0.8;
+    gl_PointSize *= (1.0 + uLevel * 0.8) * (1.0 + hover * 0.9);
 
-    float core = smoothstep(4.5, 0.0, length(position.xy));
+    float core = smoothstep(4.5, 0.0, length(shape.xy));
     vColor = mix(mix(uColorA, uColorB, aRand.y * aRand.y), uCore, core * core * 0.55 * (1.0 - aKind));
     vColor = mix(vColor, uCore, step(0.9, aRand.w) * 0.85);
+    vColor = mix(vColor, vec3(1.0), hover * 0.75);
     vAlpha = twinkle * mix(1.0, 0.35, aKind);
   }
 `;
@@ -258,14 +300,13 @@ const WATER_SHADER = {
   `,
 };
 
-function sampleHandset(count: number, width: number) {
+/** Samples points from anything drawn in black on a 256px canvas. */
+function sampleDrawing(count: number, width: number, draw: (ctx: CanvasRenderingContext2D, size: number) => void) {
   const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d")!;
-  ctx.translate(size * 0.06, size * 0.06);
-  ctx.scale((size * 0.88) / 24, (size * 0.88) / 24);
-  ctx.fill(new Path2D(HANDSET_PATH));
+  draw(ctx, size);
   const data = ctx.getImageData(0, 0, size, size).data;
   const filled: number[] = [];
   for (let i = 0; i < size * size; i++) if (data[i * 4 + 3] > 128) filled.push(i);
@@ -273,16 +314,64 @@ function sampleHandset(count: number, width: number) {
   const out = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
     const idx = filled[Math.floor(Math.random() * filled.length)];
-    const px = (idx % size) + Math.random();
-    const py = Math.floor(idx / size) + Math.random();
-    out[i * 3] = (px / size - 0.5) * width;
-    out[i * 3 + 1] = -(py / size - 0.5) * width;
-    out[i * 3 + 2] = (Math.random() - 0.5) * 1.4;
+    out[i * 3] = ((idx % size) + Math.random()) / size - 0.5;
+    out[i * 3 + 1] = -((Math.floor(idx / size) + Math.random()) / size - 0.5);
+    out[i * 3 + 2] = (Math.random() - 0.5) * 0.12;
+  }
+  for (let i = 0; i < out.length; i++) out[i] *= width;
+  return out;
+}
+
+const drawHandset = (ctx: CanvasRenderingContext2D, size: number) => {
+  ctx.translate(size * 0.06, size * 0.06);
+  ctx.scale((size * 0.88) / 24, (size * 0.88) / 24);
+  ctx.fill(new Path2D(HANDSET_PATH));
+};
+
+const drawRupee = (ctx: CanvasRenderingContext2D, size: number) => {
+  ctx.font = `700 ${size * 0.95}px "Inter Tight", system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("₹", size / 2, size * 0.54);
+};
+
+const drawHeart = (ctx: CanvasRenderingContext2D, size: number) => {
+  ctx.beginPath();
+  for (let i = 0; i <= 200; i++) {
+    const t = (i / 200) * Math.PI * 2;
+    const x = 16 * Math.pow(Math.sin(t), 3);
+    const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+    ctx.lineTo(size / 2 + x * size * 0.028, size * 0.47 - y * size * 0.028);
+  }
+  ctx.fill();
+};
+
+function sampleCloud(count: number, radius: number) {
+  const out = new Float32Array(count * 3);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    v.randomDirection().multiplyScalar(radius * Math.cbrt(Math.random()));
+    v.y *= 0.85;
+    out.set([v.x, v.y, v.z], i * 3);
   }
   return out;
 }
 
-export class RukoScene {
+function sampleRing(count: number, radius: number, tube: number) {
+  const out = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const b = Math.random() * Math.PI * 2;
+    const r = tube * Math.sqrt(Math.random());
+    out.set([(radius + r * Math.cos(b)) * Math.cos(a), (radius + r * Math.cos(b)) * Math.sin(a), r * Math.sin(b)], i * 3);
+  }
+  return out;
+}
+
+const lerp3 = (a: Vec3, b: Vec3, t: number, out: THREE.Vector3) =>
+  out.set(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
+
+export class RukoWorld {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
@@ -297,21 +386,35 @@ export class RukoScene {
   private pointer = new THREE.Vector2(10, 10);
   private pointerSmooth = new THREE.Vector2(0, 0);
   private mouseLocal = new THREE.Vector3(100, 100, 0);
-  private glyphPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 20);
+  private hoverPlane = new THREE.Plane();
   private level = 0;
   private targetLevel = 0;
+  private stage = 0;
+  private targetStage = 0;
   private introStart = -1;
+  private active = true;
   private disposed = false;
   private isMobile: boolean;
+  private baseSize: number;
+  private tmp = {
+    cam: new THREE.Vector3(),
+    look: new THREE.Vector3(),
+    glyph: new THREE.Vector3(),
+    camB: new THREE.Vector3(),
+    glyphB: new THREE.Vector3(),
+    dir: new THREE.Vector3(),
+    hit: new THREE.Vector3(),
+  };
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement) {
     this.isMobile = window.innerWidth < 768;
+    this.baseSize = this.isMobile ? 55 : 72;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.isMobile ? 1.5 : 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
 
     this.camera = new THREE.PerspectiveCamera(this.isMobile ? 60 : 42, window.innerWidth / window.innerHeight, 0.1, 600);
-    this.camera.position.set(0, 3.2, 16);
+    this.camera.position.set(0, 3.6, 16);
 
     this.scene.fog = new THREE.Fog(color(PALETTE.fog), 25, 120);
 
@@ -334,9 +437,19 @@ export class RukoScene {
     this.introStart = this.clock.getElapsedTime();
   }
 
+  /** Scroll position along the journey, 0..STAGE_COUNT. */
+  setStage(stage: number) {
+    this.targetStage = THREE.MathUtils.clamp(stage, 0, STAGE_COUNT);
+  }
+
   /** 0..1 loudness of Ruko's voice; drives the particle sculpture. */
   setVoiceLevel(level: number) {
     this.targetLevel = THREE.MathUtils.clamp(level, 0, 1);
+  }
+
+  /** Stop rendering while the 3D world is scrolled out of view. */
+  setActive(active: boolean) {
+    this.active = active;
   }
 
   dispose() {
@@ -476,36 +589,46 @@ export class RukoScene {
     const shapeCount = this.isMobile ? 9000 : 16000;
     const haloCount = this.isMobile ? 1200 : 2600;
     const total = shapeCount + haloCount;
-    const positions = new Float32Array(total * 3);
-    positions.set(sampleHandset(shapeCount, width));
-    for (let i = shapeCount; i < total; i++) {
+
+    const halo = new Float32Array(haloCount * 3);
+    for (let i = 0; i < haloCount; i++) {
       const r = width * (0.35 + Math.random() * 0.45);
       const a = Math.random() * Math.PI * 2;
-      positions[i * 3] = Math.cos(a) * r;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * width * 0.9;
-      positions[i * 3 + 2] = Math.sin(a) * r * 0.4;
+      halo.set([Math.cos(a) * r, (Math.random() - 0.5) * width * 0.9, Math.sin(a) * r * 0.4], i * 3);
     }
+    const withHalo = (shape: Float32Array, depth = 0) => {
+      const out = new Float32Array(total * 3);
+      out.set(shape);
+      if (depth) for (let i = 0; i < shapeCount; i++) out[i * 3 + 2] += (Math.random() - 0.5) * depth;
+      out.set(halo, shapeCount * 3);
+      return out;
+    };
+
     const scatter = new Float32Array(total * 3);
+    const dir = new THREE.Vector3();
     for (let i = 0; i < total; i++) {
-      const dir = new THREE.Vector3().randomDirection().multiplyScalar(14 + Math.random() * 20);
+      dir.randomDirection().multiplyScalar(14 + Math.random() * 20);
       scatter.set([dir.x, dir.y + 8, dir.z], i * 3);
     }
-    const rand = new Float32Array(total * 4).map(() => Math.random());
-    const kind = new Float32Array(total).map((_, i) => (i < shapeCount ? 0 : 1));
 
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("position", new THREE.BufferAttribute(withHalo(sampleDrawing(shapeCount, width, drawHandset)), 3));
+    geo.setAttribute("aShape1", new THREE.BufferAttribute(withHalo(sampleDrawing(shapeCount, width * 0.95, drawRupee)), 3));
+    geo.setAttribute("aShape2", new THREE.BufferAttribute(withHalo(sampleCloud(shapeCount, width * 0.42)), 3));
+    geo.setAttribute("aShape3", new THREE.BufferAttribute(withHalo(sampleDrawing(shapeCount, width, drawHeart)), 3));
+    geo.setAttribute("aShape4", new THREE.BufferAttribute(withHalo(sampleRing(shapeCount, width * 0.38, width * 0.13)), 3));
     geo.setAttribute("aScatter", new THREE.BufferAttribute(scatter, 3));
-    geo.setAttribute("aRand", new THREE.BufferAttribute(rand, 4));
-    geo.setAttribute("aKind", new THREE.BufferAttribute(kind, 1));
+    geo.setAttribute("aRand", new THREE.BufferAttribute(new Float32Array(total * 4).map(() => Math.random()), 4));
+    geo.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(total).map((_, i) => (i < shapeCount ? 0 : 1)), 1));
 
     this.glyphMaterial = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uSize: { value: this.isMobile ? 55 : 72 },
+        uSize: { value: this.baseSize },
         uPixelRatio: { value: this.renderer.getPixelRatio() },
         uLevel: { value: 0 },
         uReveal: { value: 0 },
+        uMorph: { value: 0 },
         uOpacity: { value: 1 },
         uMouse: { value: this.mouseLocal },
         uColorA: { value: color(PALETTE.glyphA) },
@@ -516,10 +639,9 @@ export class RukoScene {
       fragmentShader: GLYPH_FRAG,
       transparent: true,
       depthWrite: false,
-      blending: THREE.NormalBlending,
     });
     this.glyph = new THREE.Points(geo, this.glyphMaterial);
-    this.glyph.position.set(0, this.isMobile ? 7.5 : 7.2, -20);
+    this.glyph.position.set(...STOPS[0].glyph);
     this.glyph.frustumCulled = false;
     this.scene.add(this.glyph);
   }
@@ -564,8 +686,9 @@ export class RukoScene {
   };
 
   private tick = () => {
-    if (this.disposed) return;
+    if (this.disposed || !this.active) return;
     const t = this.clock.getElapsedTime();
+    const { cam, look, glyph, camB, glyphB, dir, hit } = this.tmp;
 
     this.skyMaterial.uniforms.uTime.value = t;
     this.grassMaterial.uniforms.uTime.value = t;
@@ -573,30 +696,54 @@ export class RukoScene {
     this.glyphMaterial.uniforms.uTime.value = t;
     (this.water.material as THREE.ShaderMaterial).uniforms.uTime.value = t;
 
-    // Camera: fly-in after "enter", then gentle parallax that follows the pointer.
+    // Scroll journey: ease between stops, holding still at the start of each.
+    this.stage += (this.targetStage - this.stage) * 0.075;
+    const k = Math.min(Math.floor(this.stage), STAGE_COUNT - 1);
+    const travel = THREE.MathUtils.smoothstep(this.stage - k, 0.3, 1);
+    const a = STOPS[k];
+    const b = STOPS[k + 1];
+    lerp3(a.cam, b.cam, travel, cam);
+    lerp3(a.look, b.look, travel, look);
+    lerp3(a.glyph, b.glyph, travel, glyph);
+    const scale = THREE.MathUtils.lerp(a.scale, b.scale, travel);
+    const finale = k === STAGE_COUNT - 1 ? travel : 0;
+
+    // Intro: fly in from further back after "enter".
     const intro = this.introStart < 0 ? 0 : THREE.MathUtils.clamp((t - this.introStart) / 3.2, 0, 1);
     const ease = 1 - Math.pow(1 - intro, 3);
-    this.pointerSmooth.lerp(this.pointer.x > 5 ? new THREE.Vector2() : this.pointer, 0.04);
-    const camZ = THREE.MathUtils.lerp(16, 10, ease);
-    const camY = THREE.MathUtils.lerp(3.6, 2.3, ease);
-    this.camera.position.set(this.pointerSmooth.x * 0.7, camY + this.pointerSmooth.y * 0.3, camZ);
-    this.camera.lookAt(this.pointerSmooth.x * 0.3, 3.6, -20);
+    lerp3([0, 3.6, 16], a.cam, ease, camB);
+    if (k === 0 && intro < 1) cam.lerp(camB, 1 - travel);
 
-    // Particles assemble into the handset as the experience opens.
+    this.pointerSmooth.lerp(this.pointer.x > 5 ? new THREE.Vector2() : this.pointer, 0.04);
+    const parallax = 1 - finale;
+    this.camera.position.set(
+      cam.x + this.pointerSmooth.x * 0.7 * parallax,
+      cam.y + this.pointerSmooth.y * 0.3 * parallax,
+      cam.z,
+    );
+    this.camera.lookAt(look.x + this.pointerSmooth.x * 0.3 * parallax, look.y, look.z);
+
     const reveal = this.glyphMaterial.uniforms.uReveal;
-    reveal.value += ((this.introStart < 0 ? 0.0 : 1.0) - reveal.value) * 0.025;
+    reveal.value += ((this.introStart < 0 ? 0 : 1) - reveal.value) * 0.025;
+    const morph = Math.min(k + travel, 4);
+    this.glyphMaterial.uniforms.uMorph.value = morph;
+    // Volumetric shapes (cloud, heart, ring) read better with bigger, bolder dots.
+    this.glyphMaterial.uniforms.uSize.value = this.baseSize * (1 + 1.1 * THREE.MathUtils.smoothstep(morph, 1.3, 2));
 
     this.level += (this.targetLevel - this.level) * 0.18;
     this.glyphMaterial.uniforms.uLevel.value = this.level;
-    this.glyph.rotation.y = Math.sin(t * 0.35) * 0.55;
-    this.glyph.rotation.z = Math.sin(t * 0.22) * 0.06;
-    this.glyph.position.y += (7.2 + Math.sin(t * 0.8) * 0.18 - this.glyph.position.y) * 0.05;
+    glyphB.set(0, Math.sin(t * 0.8) * 0.18, 0);
+    this.glyph.position.copy(glyph).add(glyphB);
+    this.glyph.scale.setScalar(scale);
+    this.glyph.rotation.y = Math.sin(t * 0.35) * 0.55 * (1 - finale);
+    this.glyph.rotation.z = finale * t * 0.15 + Math.sin(t * 0.22) * 0.06;
 
-    // Pointer pushes particles away.
+    // Pointer: project onto a plane through the sculpture, facing the camera.
     if (this.pointer.x < 5) {
+      this.camera.getWorldDirection(dir).negate();
+      this.hoverPlane.setFromNormalAndCoplanarPoint(dir, this.glyph.position);
       this.raycaster.setFromCamera(this.pointer, this.camera);
-      const hit = new THREE.Vector3();
-      if (this.raycaster.ray.intersectPlane(this.glyphPlane, hit)) {
+      if (this.raycaster.ray.intersectPlane(this.hoverPlane, hit)) {
         this.glyph.worldToLocal(hit);
         this.mouseLocal.lerp(hit, 0.15);
       }
