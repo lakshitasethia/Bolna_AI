@@ -1,10 +1,26 @@
 :root {
-  --lilac-50: #f2edff;
-  --ink: #2a1647;
-  --violet: #9047ff;
-  --font-serif: var(--font-instrument-serif), "Times New Roman", serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
-  --font-sans: var(--font-inter-tight), system-ui, sans-serif;
+  --paper: #ffffff;
+  --ink: #262420;
+  --muted: #6c685d;
+  --window: #f6f4ed;
+  --rule: #e4e0d4;
+  --olive: #55610f;
+  --olive-ink: #3e470a;
+  --olive-soft: #eef0d8;
+  --marigold: #f3b61f;
+  --marigold-soft: #fdf1cf;
+  --truck-red: #b4232c;
+  --truck-red-soft: #f8e1e0;
+  --truck-green: #1d6a4e;
+  --truck-blue: #1f4e9c;
+
+  --font-serif: var(--font-young-serif), Georgia, serif;
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --font-deva: var(--font-tiro-deva), "Noto Serif Devanagari", serif;
+
+  --radius-window: 18px;
+  --radius-chip: 999px;
+  --shadow-window: 0 1px 0 rgba(38, 36, 32, 0.04), 0 24px 60px -24px rgba(38, 36, 32, 0.28);
 }
 
 * {
@@ -15,18 +31,42 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--lilac-50);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-button {
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+button,
+input,
+select {
   font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 2px;
 }
 
 ::selection {
-  background: var(--violet);
-  color: #fff;
+  background: var(--marigold);
+  color: var(--ink);
 }

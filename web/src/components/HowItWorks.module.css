@@ -1,0 +1,153 @@
+.section {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 120px 24px 80px;
+}
+
+.heading {
+  margin: 0 0 64px auto;
+  max-width: 560px;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(0, 1fr);
+  gap: 48px;
+}
+
+.nav {
+  position: sticky;
+  top: 110px;
+  align-self: start;
+}
+
+.nav ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-width: 170px;
+}
+
+.nav a {
+  display: block;
+  padding: 8px 0;
+  font-size: 14px;
+  text-decoration: none;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  transition: color 200ms ease, border-color 200ms ease;
+}
+
+.nav a[aria-current="step"] {
+  color: var(--ink);
+  border-bottom: 2px solid var(--ink);
+}
+
+.steps {
+  display: grid;
+  gap: 120px;
+}
+
+.step {
+  scroll-margin-top: 110px;
+}
+
+.stepTitle {
+  margin: 0 0 10px;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1.2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.next {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: var(--radius-chip);
+  background: var(--marigold-soft);
+  color: #7a5400;
+}
+
+.body {
+  margin: 0 0 24px;
+  max-width: 54ch;
+  color: var(--ink);
+}
+
+.window {
+  background: var(--window);
+  border-radius: var(--radius-window);
+  border: 1px solid rgba(38, 36, 32, 0.06);
+  padding: 22px;
+  background-image: linear-gradient(135deg, rgba(243, 182, 31, 0.12), transparent 40%);
+}
+
+.ladder,
+.chat {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.ladder li,
+.chat li {
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: var(--paper);
+  font-size: 14.5px;
+  max-width: 88%;
+  box-shadow: 0 1px 2px rgba(38, 36, 32, 0.06);
+}
+
+.ladder li[data-who="agent"],
+.chat li[data-who="agent"] {
+  justify-self: end;
+  background: var(--olive-soft);
+}
+
+.ladder li[data-who="deal"],
+.chat li[data-who="note"] {
+  justify-self: stretch;
+  max-width: none;
+  background: var(--olive);
+  color: #fff;
+  font-weight: 500;
+}
+
+@media (max-width: 760px) {
+  .section {
+    padding: 80px 16px 48px;
+  }
+
+  .heading {
+    margin-bottom: 40px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .steps {
+    gap: 72px;
+  }
+}

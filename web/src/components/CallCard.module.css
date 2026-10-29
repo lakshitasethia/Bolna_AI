@@ -1,0 +1,177 @@
+.card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+  transition: border-color 300ms ease, box-shadow 300ms ease;
+}
+
+.card[data-status="booked"] {
+  border-color: var(--olive);
+  box-shadow: 0 0 0 3px var(--olive-soft);
+}
+
+.card[data-status="released"],
+.card[data-status="not_free"],
+.card[data-status="too_expensive"],
+.card[data-status="no_answer"],
+.card[data-status="call_later"],
+.card[data-status="failed"] {
+  opacity: 0.66;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.meta {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: var(--radius-chip);
+  font-size: 12.5px;
+  font-weight: 500;
+  background: var(--window);
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+.chip[data-status="ringing"] {
+  background: var(--marigold-soft);
+  border-color: #f1dc9c;
+  color: #7a5400;
+}
+
+.chip[data-status="talking"],
+.chip[data-status="agreed"] {
+  background: var(--olive-soft);
+  border-color: #d9ddb4;
+  color: var(--olive-ink);
+}
+
+.chip[data-status="booked"] {
+  background: var(--olive);
+  border-color: var(--olive);
+  color: #fff;
+}
+
+.chip[data-status="too_expensive"],
+.chip[data-status="failed"] {
+  background: var(--truck-red-soft);
+  border-color: #efc3c1;
+  color: var(--truck-red);
+}
+
+.pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.ladder {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ladder li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  background: var(--window);
+}
+
+.ladder li[data-who="agent"] {
+  background: var(--olive-soft);
+}
+
+.ladder li[data-who="deal"] {
+  background: var(--olive);
+  color: #fff;
+}
+
+.ladderWho {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.transcript li {
+  animation: in 260ms ease-out both;
+}
+
+.transcript li[data-who="owner"] {
+  color: var(--muted);
+}
+
+.speaker {
+  font-weight: 600;
+  margin-right: 6px;
+  color: var(--ink);
+}
+
+@keyframes in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+.result {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--olive-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse,
+  .transcript li {
+    animation: none;
+  }
+}

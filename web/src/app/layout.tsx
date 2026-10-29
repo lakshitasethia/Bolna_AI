@@ -1,35 +1,34 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Instrument_Serif, Inter_Tight } from "next/font/google";
+import { Hanken_Grotesk, Tiro_Devanagari_Hindi, Young_Serif } from "next/font/google";
 import "./globals.css";
 
-const serif = Instrument_Serif({
-  variable: "--font-instrument-serif",
+const serif = Young_Serif({
+  variable: "--font-young-serif",
   subsets: ["latin"],
   weight: "400",
-  style: ["normal", "italic"],
 });
 
-const mono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
+const sans = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
-  weight: "500",
+  weight: ["400", "500", "600"],
 });
 
-const sans = Inter_Tight({
-  variable: "--font-inter-tight",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const deva = Tiro_Devanagari_Hindi({
+  variable: "--font-tiro-deva",
+  subsets: ["devanagari"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
-  title: "Ruko — Call before you pay",
+  title: "Bhaada · Trucks booked by phone, in Hindi",
   description:
-    "Ruko is a voice AI that stops phone scams. Before you pay anyone who called you, call Ruko — in Hindi, Hinglish and your language.",
+    "Bhaada calls your truck owners in Hindi, bargains within your budget and books the cheapest truck. Built on Bolna.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${serif.variable} ${mono.variable} ${sans.variable}`}>
+    <html lang="en" className={`${serif.variable} ${sans.variable} ${deva.variable}`}>
       <body>{children}</body>
     </html>
   );

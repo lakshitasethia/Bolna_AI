@@ -1,0 +1,82 @@
+.bar {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  max-width: 1148px;
+  margin: 8px auto 0;
+  padding: 8px 8px 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.latin {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.deva {
+  font-family: var(--font-deva);
+  font-size: 17px;
+  color: var(--truck-red);
+}
+
+.links {
+  display: flex;
+  gap: 22px;
+  margin: 0 auto;
+  font-size: 14px;
+}
+
+.links a {
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.cta {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--olive);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cta:hover {
+  background: var(--olive-ink);
+}
+
+@media (max-width: 640px) {
+  .bar {
+    margin: 8px 16px 0;
+    gap: 12px;
+  }
+
+  .links {
+    display: none;
+  }
+
+  .cta {
+    margin-left: auto;
+  }
+}
