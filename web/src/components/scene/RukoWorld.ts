@@ -148,6 +148,7 @@ const GLYPH_VERT = /* glsl */ `
   uniform float uReveal;
   uniform float uMorph;
   uniform vec3 uMouse;
+  uniform float uEnergy;
   uniform vec3 uColorA;
   uniform vec3 uColorB;
   uniform vec3 uCore;
@@ -188,22 +189,25 @@ const GLYPH_VERT = /* glsl */ `
 
     // Cursor: particles near the pointer burst outwards and glow white-hot.
     vec3 d = p - uMouse;
-    float hover = smoothstep(2.8, 0.0, length(d.xy));
+    float hover = smoothstep(5.0, 0.0, length(d.xy));
+    float glow = hover * uEnergy;
     float swirl = aRand.w * 6.2831 + uTime * 2.0;
-    p += normalize(d + vec3(0.0001)) * hover * 1.6 * (0.4 + aRand.w);
-    p.z += hover * sin(swirl) * 1.2;
+    p += normalize(d + vec3(0.0001)) * hover * (0.25 + uEnergy * 1.5) * (0.4 + aRand.w);
+    p.z += glow * sin(swirl) * 1.4;
 
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
 
     float twinkle = 0.55 + 0.45 * sin(uTime * (2.0 + aRand.y * 4.0) + aRand.x * 40.0);
     gl_PointSize = uSize * (0.35 + aRand.z) * (0.75 + twinkle * 0.5) * uPixelRatio / -mv.z;
-    gl_PointSize *= (1.0 + uLevel * 0.8) * (1.0 + hover * 0.9);
+    gl_PointSize *= (1.0 + uLevel * 0.8) * (1.0 + glow * 0.7);
 
     float core = smoothstep(4.5, 0.0, length(shape.xy));
     vColor = mix(mix(uColorA, uColorB, aRand.y * aRand.y), uCore, core * core * 0.55 * (1.0 - aKind));
     vColor = mix(vColor, uCore, step(0.9, aRand.w) * 0.85);
-    vColor = mix(vColor, vec3(1.0), hover * 0.75);
+    // White-hot core where the cursor sweeps, with a faint chromatic rim.
+    vColor = mix(vColor, vec3(1.0), smoothstep(0.04, 0.55, glow) * 0.95);
+    vColor = mix(vColor, aRand.x > 0.5 ? vec3(0.65, 1.0, 1.0) : vec3(1.0, 0.7, 1.0), glow * (1.0 - glow) * 1.2);
     vAlpha = twinkle * mix(1.0, 0.35, aKind);
   }
 `;
@@ -214,9 +218,15 @@ const GLYPH_FRAG = /* glsl */ `
   varying float vAlpha;
   #include <common>
   void main() {
-    float d = length(gl_PointCoord - 0.5);
-    float a = smoothstep(0.5, 0.05, d);
-    gl_FragColor = vec4(vColor, a * vAlpha * uOpacity * 0.9);
+    vec2 c = gl_PointCoord - 0.5;
+    float d = length(c);
+    float a = smoothstep(0.5, 0.42, d);
+    // Shade each dot like a small glossy sphere.
+    vec3 n = vec3(c * 2.0, sqrt(max(0.0, 1.0 - 4.0 * d * d)));
+    float light = dot(n, normalize(vec3(-0.45, 0.55, 0.7)));
+    vec3 col = vColor * (0.72 + 0.42 * light);
+    col += pow(max(light, 0.0), 18.0) * 0.45;
+    gl_FragColor = vec4(col, a * vAlpha * uOpacity);
     #include <colorspace_fragment>
   }
 `;
@@ -391,6 +401,8 @@ export class RukoWorld {
   private targetLevel = 0;
   private stage = 0;
   private targetStage = 0;
+  private energy = 0;
+  private lastPointer = new THREE.Vector2(-1, -1);
   private introStart = -1;
   private active = true;
   private disposed = false;
@@ -410,7 +422,7 @@ export class RukoWorld {
     this.isMobile = window.innerWidth < 768;
     this.baseSize = this.isMobile ? 55 : 72;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.isMobile ? 1.5 : 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.isMobile ? 1.25 : 1.5));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
 
     this.camera = new THREE.PerspectiveCamera(this.isMobile ? 60 : 42, window.innerWidth / window.innerHeight, 0.1, 600);
@@ -429,7 +441,6 @@ export class RukoWorld {
 
     window.addEventListener("resize", this.onResize);
     window.addEventListener("pointermove", this.onPointerMove);
-    this.renderer.setAnimationLoop(this.tick);
   }
 
   /** Fly the camera into its resting position. */
@@ -454,7 +465,6 @@ export class RukoWorld {
 
   dispose() {
     this.disposed = true;
-    this.renderer.setAnimationLoop(null);
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("pointermove", this.onPointerMove);
     this.scene.traverse((obj) => {
@@ -509,7 +519,7 @@ export class RukoWorld {
   }
 
   private buildWater() {
-    const size = new THREE.Vector2(window.innerWidth, window.innerHeight).multiplyScalar(0.5 * this.renderer.getPixelRatio());
+    const size = new THREE.Vector2(window.innerWidth, window.innerHeight).multiplyScalar(0.4 * this.renderer.getPixelRatio());
     this.water = new Reflector(new THREE.PlaneGeometry(260, 30), {
       shader: WATER_SHADER,
       textureWidth: size.x,
@@ -561,8 +571,8 @@ export class RukoWorld {
 
     const scale = this.isMobile ? 0.45 : 1;
     const patches = [
-      { count: Math.floor(30000 * scale), z: [3.2, 12], x: 16, height: [0.3, 0.75], width: [0.8, 1.5] },
-      { count: Math.floor(26000 * scale), z: [-36, -23.5], x: 70, height: [0.7, 1.4], width: [1.6, 2.6] },
+      { count: Math.floor(24000 * scale), z: [3.2, 12], x: 16, height: [0.3, 0.75], width: [0.8, 1.5] },
+      { count: Math.floor(20000 * scale), z: [-36, -23.5], x: 70, height: [0.7, 1.4], width: [1.6, 2.6] },
     ];
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -631,6 +641,7 @@ export class RukoWorld {
         uMorph: { value: 0 },
         uOpacity: { value: 1 },
         uMouse: { value: this.mouseLocal },
+        uEnergy: { value: 0 },
         uColorA: { value: color(PALETTE.glyphA) },
         uColorB: { value: color(PALETTE.glyphB) },
         uCore: { value: color(PALETTE.glyphCore) },
@@ -678,14 +689,20 @@ export class RukoWorld {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
     const pr = this.renderer.getPixelRatio();
-    this.water.getRenderTarget().setSize(w * 0.5 * pr, h * 0.5 * pr);
+    this.water.getRenderTarget().setSize(w * 0.4 * pr, h * 0.4 * pr);
   };
 
   private onPointerMove = (e: PointerEvent) => {
+    if (this.lastPointer.x >= 0) {
+      const moved = Math.hypot(e.clientX - this.lastPointer.x, e.clientY - this.lastPointer.y);
+      this.energy = Math.min(1, this.energy + moved * 0.012);
+    }
+    this.lastPointer.set(e.clientX, e.clientY);
     this.pointer.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   };
 
-  private tick = () => {
+  /** Advance and draw one frame; driven by the page's single animation loop. */
+  frame = () => {
     if (this.disposed || !this.active) return;
     const t = this.clock.getElapsedTime();
     const { cam, look, glyph, camB, glyphB, dir, hit } = this.tmp;
@@ -697,7 +714,13 @@ export class RukoWorld {
     (this.water.material as THREE.ShaderMaterial).uniforms.uTime.value = t;
 
     // Scroll journey: ease between stops, holding still at the start of each.
-    this.stage += (this.targetStage - this.stage) * 0.075;
+    // Lenis already smooths the scroll, so follow it directly.
+    this.stage = this.targetStage;
+
+    // Cursor energy: builds while the pointer moves, fades when it rests.
+    this.energy *= 0.982;
+    const energy = this.glyphMaterial.uniforms.uEnergy;
+    energy.value += (this.energy - energy.value) * 0.2;
     const k = Math.min(Math.floor(this.stage), STAGE_COUNT - 1);
     const travel = THREE.MathUtils.smoothstep(this.stage - k, 0.3, 1);
     const a = STOPS[k];

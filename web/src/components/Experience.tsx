@@ -25,6 +25,7 @@ export default function Experience() {
   const rootRef = useRef<HTMLElement>(null);
   const journeyRef = useRef<HTMLDivElement>(null);
   const flashRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<RukoWorld | null>(null);
   const lenisRef = useRef<Lenis | null>(null);
   const ambientRef = useRef<Ambient | null>(null);
@@ -35,7 +36,7 @@ export default function Experience() {
   const [talking, setTalking] = useState(false);
   const [bubble, setBubble] = useState(false);
 
-  // Boot: build the 3D world, run the loader, drive everything from scroll.
+  // Boot: build the 3D world, run the loader, drive everything from one loop.
   useEffect(() => {
     let cancelled = false;
     let ready = false;
@@ -43,7 +44,7 @@ export default function Experience() {
 
     history.scrollRestoration = "manual";
     window.scrollTo(0, 0);
-    const lenis = new Lenis({ autoRaf: true, anchors: true, lerp: 0.085 });
+    const lenis = new Lenis({ autoRaf: false, anchors: true, lerp: 0.075, wheelMultiplier: 0.9 });
     lenis.stop();
     lenisRef.current = lenis;
 
@@ -51,88 +52,144 @@ export default function Experience() {
       if (cancelled || !canvasRef.current) return;
       worldRef.current = new mod.RukoWorld(canvasRef.current);
       ready = true;
+      measure();
     });
 
-    let loaderRaf = 0;
-    let value = 0;
-    const loaderStep = () => {
-      const done = ready && performance.now() - started > 2200;
-      value += ((done ? 100 : 90) - value) * (done ? 0.12 : 0.03);
-      setProgress(Math.min(100, Math.round(value)));
-      if (Math.round(value) >= 100) {
-        setTimeout(() => !cancelled && setPhase("gate"), 250);
-        return;
-      }
-      loaderRaf = requestAnimationFrame(loaderStep);
-    };
-    loaderRaf = requestAnimationFrame(loaderStep);
-
-    let scrollRaf = 0;
-    const onFrame = () => {
-      scrollRaf = requestAnimationFrame(onFrame);
-      const journey = journeyRef.current;
+    // Layout is measured once (and on resize), never inside the frame loop.
+    type Item = { el: HTMLElement; top: number; h: number; last: string };
+    let panels: { el: HTMLElement; i: number; last: string }[] = [];
+    let reveals: Item[] = [];
+    let lists: { items: Item[]; best: Item | null }[] = [];
+    let rises: Item[] = [];
+    let journeyH = 0;
+    const measure = () => {
       const root = rootRef.current;
-      if (!journey || !root) return;
+      if (!root || !journeyRef.current) return;
+      const y = window.scrollY;
+      const item = (el: HTMLElement): Item => {
+        const r = el.getBoundingClientRect();
+        return { el, top: r.top + y, h: r.height, last: "" };
+      };
+      journeyH = journeyRef.current.offsetHeight;
+      panels = [...root.querySelectorAll<HTMLElement>("[data-panel]")].map((el) => ({ el, i: Number(el.dataset.panel), last: "" }));
+      reveals = [...root.querySelectorAll<HTMLElement>("[data-reveal]")].map(item);
+      lists = [...root.querySelectorAll<HTMLElement>("[data-list]")].map((list) => ({
+        items: [...list.querySelectorAll<HTMLElement>("[data-item]")].map(item),
+        best: null,
+      }));
+      rises = [...root.querySelectorAll<HTMLElement>("[data-rise]:not([data-in])")].map(item);
+    };
+    const observer = new ResizeObserver(() => measure());
+    if (rootRef.current) observer.observe(rootRef.current);
+    measure();
+
+    // The gate's soft glow trails the cursor.
+    const target = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const glow = { ...target };
+    const onPointer = (e: PointerEvent) => {
+      target.x = e.clientX;
+      target.y = e.clientY;
+    };
+    window.addEventListener("pointermove", onPointer);
+
+    let value = 0;
+    let gateShown = false;
+    let raf = 0;
+    const onFrame = (time: number) => {
+      raf = requestAnimationFrame(onFrame);
+      lenis.raf(time);
+
+      if (!gateShown) {
+        const done = ready && performance.now() - started > 2200;
+        value += ((done ? 100 : 90) - value) * (done ? 0.12 : 0.03);
+        setProgress(Math.min(100, Math.round(value)));
+        if (Math.round(value) >= 100) {
+          gateShown = true;
+          setTimeout(() => !cancelled && setPhase("gate"), 250);
+        }
+      }
+
+      const root = rootRef.current;
+      if (!root || !journeyH) return;
       const vh = window.innerHeight;
       const y = lenis.scroll;
-      const length = journey.offsetHeight - vh;
-      const s = clamp01(y / length) * STAGES;
+
+      if (glowRef.current && root.dataset.phase !== "entered") {
+        glow.x += (target.x - glow.x) * 0.08;
+        glow.y += (target.y - glow.y) * 0.08;
+        glowRef.current.style.transform = `translate3d(${glow.x}px, ${glow.y}px, 0)`;
+      }
+
+      const s = clamp01(y / (journeyH - vh)) * STAGES;
       worldRef.current?.setStage(s);
-      worldRef.current?.setActive(y < journey.offsetHeight);
+      worldRef.current?.setActive(y < journeyH);
+      worldRef.current?.frame();
 
       // Text panels: leave early in a segment, arrive late, glitch in between.
       const k = Math.min(Math.floor(s), STAGES - 1);
       const f = s - k;
-      root.querySelectorAll<HTMLElement>("[data-panel]").forEach((panel) => {
-        const i = Number(panel.dataset.panel);
+      for (const p of panels) {
         let o = 0;
-        if (i === k) o = 1 - smooth(0.08, 0.32, f);
-        else if (i === k + 1) o = smooth(0.78, 0.98, f);
+        if (p.i === k) o = 1 - smooth(0.08, 0.32, f);
+        else if (p.i === k + 1) o = smooth(0.78, 0.98, f);
         if (s >= STAGES) o = 0;
-        panel.style.setProperty("--o", o.toFixed(3));
-        panel.style.setProperty("--g", (o > 0 && o < 1 ? 1 - o : 0).toFixed(3));
-        panel.style.visibility = o > 0.001 ? "visible" : "hidden";
-      });
-      if (flashRef.current) {
-        const flash = k === STAGES - 1 ? smooth(0.55, 0.95, f) : 0;
-        flashRef.current.style.opacity = String(s >= STAGES ? 1 : flash);
+        const key = o.toFixed(3);
+        if (key === p.last) continue;
+        p.last = key;
+        p.el.style.setProperty("--o", key);
+        p.el.style.setProperty("--g", (o > 0 && o < 1 ? 1 - o : 0).toFixed(3));
+        p.el.style.visibility = o > 0.001 ? "visible" : "hidden";
       }
-      root.dataset.theme = s > STAGES - 0.25 ? "light" : "dark";
+      if (flashRef.current) {
+        const flash = s >= STAGES ? 1 : k === STAGES - 1 ? smooth(0.55, 0.95, f) : 0;
+        flashRef.current.style.opacity = flash.toFixed(3);
+      }
+      const theme = s > STAGES - 0.25 ? "light" : "dark";
+      if (root.dataset.theme !== theme) root.dataset.theme = theme;
+      if (y < journeyH - vh) return;
 
       // Words light up as their paragraph scrolls through the viewport.
-      root.querySelectorAll<HTMLElement>("[data-reveal]").forEach((el) => {
-        const r = el.getBoundingClientRect();
-        el.style.setProperty("--p", clamp01((vh * 0.85 - r.top) / (r.height + vh * 0.35)).toFixed(3));
-      });
+      for (const r of reveals) {
+        const key = clamp01((vh * 0.85 - (r.top - y)) / (r.h + vh * 0.35)).toFixed(3);
+        if (key !== r.last) r.el.style.setProperty("--p", (r.last = key));
+      }
 
       // Lists highlight the row nearest the middle of the screen.
-      root.querySelectorAll<HTMLElement>("[data-list]").forEach((list) => {
-        let best: HTMLElement | null = null;
+      for (const list of lists) {
+        let best: Item | null = null;
         let bestDist = Infinity;
-        list.querySelectorAll<HTMLElement>("[data-item]").forEach((item) => {
-          const r = item.getBoundingClientRect();
-          const dist = Math.abs(r.top + r.height / 2 - vh * 0.5);
-          item.style.setProperty("--d", clamp01(dist / (vh * 0.45)).toFixed(3));
-          item.removeAttribute("data-active");
+        for (const it of list.items) {
+          const dist = Math.abs(it.top - y + it.h / 2 - vh * 0.5);
+          const key = clamp01(dist / (vh * 0.45)).toFixed(2);
+          if (key !== it.last) it.el.style.setProperty("--d", (it.last = key));
           if (dist < bestDist) {
             bestDist = dist;
-            best = item;
+            best = it;
           }
-        });
-        (best as HTMLElement | null)?.setAttribute("data-active", "");
-      });
+        }
+        if (best !== list.best) {
+          list.best?.el.removeAttribute("data-active");
+          best?.el.setAttribute("data-active", "");
+          list.best = best;
+        }
+      }
 
       // Cards and blocks rise in once.
-      root.querySelectorAll<HTMLElement>("[data-rise]:not([data-in])").forEach((el) => {
-        if (el.getBoundingClientRect().top < vh * 0.92) el.setAttribute("data-in", "");
-      });
+      if (rises.length) {
+        rises = rises.filter((r) => {
+          if (r.top - y > vh * 0.92) return true;
+          r.el.setAttribute("data-in", "");
+          return false;
+        });
+      }
     };
-    scrollRaf = requestAnimationFrame(onFrame);
+    raf = requestAnimationFrame(onFrame);
 
     return () => {
       cancelled = true;
-      cancelAnimationFrame(loaderRaf);
-      cancelAnimationFrame(scrollRaf);
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      window.removeEventListener("pointermove", onPointer);
       lenis.destroy();
       stopVoiceRef.current?.();
       ambientRef.current?.stop();
@@ -189,6 +246,7 @@ export default function Experience() {
 
       {/* ---------- Loader + entry gate ---------- */}
       <section className={styles.loader} aria-hidden={entered}>
+        <div ref={glowRef} className={styles.cursorGlow} aria-hidden />
         <div className={styles.loaderCenter}>
           <Logo className={styles.loaderLogo} />
           <p className={styles.mono}>
@@ -214,7 +272,7 @@ export default function Experience() {
           </div>
         ) : (
           <div className={styles.gate}>
-            <button className={styles.glassBtn} onClick={() => enter(true)}>
+            <button className={styles.glassBtn} onPointerMove={followGlow} onClick={() => enter(true)}>
               <SpeakerIcon /> Enter with sound
             </button>
             <button className={styles.enterMute} onClick={() => enter(false)}>
@@ -354,7 +412,7 @@ export default function Experience() {
                 "Papa gets a call from a ‘CBI officer’. Before he pays a rupee, he calls Ruko. Ruko calms him in Hindi, asks four simple questions, recognises the script, tells him to hang up — and messages his son on Telegram. If money already left, Ruko walks him through 1930 and the bank freeze inside the golden hour.",
               )}
             </p>
-            <button className={styles.glassBtn} onClick={talk} data-rise>
+            <button className={styles.glassBtn} onPointerMove={followGlow} onClick={talk} data-rise>
               Try Ruko now <ReturnIcon />
             </button>
           </div>
@@ -450,7 +508,7 @@ export default function Experience() {
               <br />
               scam-proof
             </h2>
-            <button className={styles.glassBtn} onClick={talk}>
+            <button className={styles.glassBtn} onPointerMove={followGlow} onClick={talk}>
               Talk to Ruko <ReturnIcon />
             </button>
           </div>
@@ -501,6 +559,13 @@ export default function Experience() {
       </div>
     </main>
   );
+}
+
+/** Moves a glass button's inner glow to the cursor. */
+function followGlow(e: React.PointerEvent<HTMLElement>) {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty("--mx", `${((e.clientX - r.left) / r.width) * 100}%`);
+  e.currentTarget.style.setProperty("--my", `${((e.clientY - r.top) / r.height) * 100}%`);
 }
 
 function splitWords(text: string) {
