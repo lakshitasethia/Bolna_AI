@@ -3,6 +3,7 @@ import type { Call, Load } from "./types.ts";
 const API = "https://api.bolna.ai";
 
 export const bolnaConfigured = () => Boolean(process.env.BOLNA_API_KEY && process.env.BOLNA_AGENT_ID);
+export const intakeConfigured = () => Boolean(process.env.BOLNA_API_KEY && process.env.BOLNA_INTAKE_AGENT_ID);
 
 // Places one outbound call. The agent prompt reads these user_data fields as
 // {load_id}, {call_id}, {owner_name} and so on (see agent/bhaada-agent.md).
@@ -19,6 +20,7 @@ export async function placeCall(load: Load, call: Call) {
       user_data: {
         load_id: load.id,
         call_id: call.id,
+        agent_letter: call.agent,
         owner_name: call.contact.name.split(" ")[0],
         transporter: load.transporter,
         pickup_place: load.from,

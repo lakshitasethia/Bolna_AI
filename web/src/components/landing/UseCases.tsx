@@ -6,9 +6,9 @@ import { gsap, prefersReduced } from "./motion";
 import styles from "./UseCases.module.css";
 
 const CASES = [
-  { name: "Transporters", body: "Post a load once and let Bhaada work the phones while you handle your shippers." },
+  { name: "Transporters", body: "Phone the load in once. Six agents work your owners while you handle your shippers." },
   { name: "Fleet owners", body: "Fill trucks that would otherwise wait at the yard, without hiring a dispatcher." },
-  { name: "Freight brokers", body: "Cover more loads a day with the owner network you already have." },
+  { name: "Freight brokers", body: "Run every load as a live auction across the owner network you already have." },
   { name: "Factory dispatch", body: "Book outbound trucks for the daily despatch without a morning of calls." },
   { name: "Small fleets", body: "Get the reach of a big control room from a one-person desk." },
   { name: "Dispatch teams", body: "Hand the repeat calls to Bhaada and keep people on the hard ones." },

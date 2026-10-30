@@ -18,8 +18,8 @@ function Chat({ lines }: { lines: { who: "agent" | "owner" | "note"; text: strin
 
 const ROWS = [
   {
-    title: "Booking desk",
-    body: "Post a load once. Watch every call, every price and the booking as it happens, then forward the truck details to your shipper.",
+    title: "Phone-in booking",
+    body: "Call Bhaada and say the load. Six agents ring your owners at once, share every rate they lock, and book the cheapest truck. You watch it happen on the desk.",
     link: { href: "/desk", label: "Open the desk" },
     visual: <LiveLoad />,
   },

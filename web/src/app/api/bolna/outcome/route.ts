@@ -1,5 +1,6 @@
 // Bolna custom function `report_outcome`: the agent calls this once, at the
 // end of the conversation, with how the call ended.
+import { recordLock } from "@/lib/board.ts";
 import { parseRupees, readParams, toolAuthorized } from "@/lib/bolna.ts";
 import { settleAndNotify } from "@/lib/finish.ts";
 import { findCall } from "@/lib/store.ts";
@@ -21,6 +22,8 @@ export async function POST(req: Request) {
   if (!found) return Response.json({ error: "Unknown load or call." }, { status: 404 });
 
   const { load, call } = found;
+  // A call that already has its outcome can't be changed by a second report.
+  if (call.endedAt !== undefined) return Response.json({ ok: true, say: "Dhanyavaad!" });
   const status = OUTCOMES[(p.outcome ?? "").toUpperCase()];
   if (!status) return Response.json({ error: `outcome must be one of ${Object.keys(OUTCOMES).join(", ")}` }, { status: 400 });
 
@@ -34,16 +37,20 @@ export async function POST(req: Request) {
         say: "Ek minute, rate confirm karna padega. Main office se baat karke callback karti hoon.",
       });
     }
+    const fresh = call.agreedRate !== rate;
     call.agreedRate = rate;
     call.vehicle = (p.vehicle_number ?? "").toUpperCase();
     call.driverPhone = p.driver_phone ?? "";
+    // The owner took one of our offers without the agent submitting it first.
+    if (fresh) recordLock(load, call, Date.now());
   }
 
-  call.status = status;
+  // Keep "outbid" when the agent reports a decline that the board caused.
+  call.status = status === "too_expensive" && call.status === "outbid" ? "outbid" : status;
   call.endedAt = Date.now();
   await settleAndNotify(load);
 
-  return Response.json({ ok: true, say: status === "agreed" ? "Dhanyavaad! Confirmation SMS aa jayega." : "Dhanyavaad!" });
+  return Response.json({ ok: true, say: status === "agreed" ? "Dhanyavaad! Das minute mein final confirmation bhejti hoon." : "Dhanyavaad!" });
 }
 
 export const GET = POST;

@@ -5,29 +5,60 @@ import { gsap, prefersReduced } from "./motion";
 import styles from "./Steps.module.css";
 
 const STEPS = [
-  { name: "Call", line: "Rings every owner on your list at once, in Hindi or Hinglish" },
-  { name: "Haggle", line: "Bargains in ₹500 steps and never names your maximum" },
-  { name: "Book", line: "Locks the cheapest truck and sends you the vehicle and driver" },
-  { name: "Follow up", line: "Calls the driver at pickup and tells you where the truck is" },
+  { name: "Call in", line: "You ring Bhaada once and say the load in Hindi" },
+  { name: "Fan out", line: "Six agents dial six owners in the same minute" },
+  { name: "Undercut", line: "Every rate one agent locks goes to the rest, who only book below it" },
+  { name: "Book", line: "The cheapest truck wins and the details reach you" },
 ];
 
-function CallPanel() {
+function IntakePanel() {
+  const lines = [
+    ["Bhaada", "Namaste, Bhaada desk. Load bataiye."],
+    ["You", "Kal subah 6 baje Okhla se Jaipur, 32 foot container, 20 ton."],
+    ["Bhaada", "Maximum kitna de sakte hain?"],
+    ["You", "38 hazaar tak."],
+    ["Bhaada", "Load post ho gaya. 6 gaadi waalon ko ek saath call kar rahi hoon."],
+  ];
+  return (
+    <div className={styles.sheet}>
+      <p className={`${styles.sheetHead} mono`}>
+        <span>Incoming, Sharma Roadlines</span>
+        <span>0:41</span>
+      </p>
+      <ul className={styles.track}>
+        {lines.map(([who, text], i) => (
+          <li key={i} data-row data-done={who === "You" ? "" : undefined}>
+            <span className="mono">{who}</span>
+            {text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FanPanel() {
   const rows = [
-    ["Raju Yadav", "Okhla", "On the call"],
-    ["Gurpreet Singh", "Kundli", "On the call"],
-    ["Anwar Khan", "Gurugram", "Truck not free"],
+    ["A", "Raju Yadav", "Okhla", "On the call"],
+    ["B", "Gurpreet Singh", "Kundli", "On the call"],
+    ["C", "Anwar Khan", "Gurugram", "Truck not free"],
+    ["D", "Sukhwinder Gill", "Sonipat", "On the call"],
+    ["E", "Vikram Chauhan", "Faridabad", "No answer"],
+    ["F", "Mohan Lal", "Ghaziabad", "On the call"],
   ];
   return (
     <div className={styles.sheet}>
       <p className={`${styles.sheetHead} mono`}>
         <span>Load 0417, Okhla to Jaipur</span>
-        <span>3 owners</span>
+        <span>6 agents</span>
       </p>
       <ul className={styles.owners}>
-        {rows.map(([n, c, s]) => (
+        {rows.map(([a, n, c, s]) => (
           <li key={n} data-row>
             <span className={styles.ring} data-on={s === "On the call"} />
-            <strong>{n}</strong>
+            <strong>
+              <span className="mono">{a}</span> {n}
+            </strong>
             <span>{c}</span>
             <span className="mono" data-on={s === "On the call"}>
               {s}
@@ -39,50 +70,40 @@ function CallPanel() {
   );
 }
 
-function HagglePanel() {
-  const max = 38000;
-  const lo = 33000;
-  const hi = 43000;
-  const pos = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
-  const rows: [string, number][] = [
-    ["Asked", 39000],
-    ["Offered", 35000],
-    ["Asked", 37500],
-    ["Offered", 36000],
-    ["Final", 36500],
+function BoardPanel() {
+  const rows: [string, string, boolean?][] = [
+    ["+11s", "Agent A: Raju agreed ₹37,000"],
+    ["+11s", "To B, D, F: only book under ₹37,000"],
+    ["+14s", "Agent B: Gurpreet beat it with ₹36,000"],
+    ["+16s", "Agent F: Mohan heard ₹36,000, took ₹35,500"],
+    ["+17s", "Agent D: Sukhwinder wouldn't go under ₹35,500", true],
   ];
   return (
     <div className={styles.sheet}>
       <p className={`${styles.sheetHead} mono`}>
-        <span>Gurpreet Singh, 32 ft</span>
-        <span>₹500 steps</span>
+        <span>Agent channel</span>
+        <span>Best ₹35,500</span>
       </p>
-      <div className={styles.ladder}>
-        <i className={styles.max} style={{ left: pos(max) }}>
-          <span className="mono">Your max ₹38,000</span>
-        </i>
-        {rows.map(([who, v], i) => (
-          <div key={i} className={styles.bar} data-who={who} data-row>
-            <span className="mono">{who}</span>
-            <div>
-              <i style={{ width: pos(v) }} data-fill />
-            </div>
-            <span>₹{v.toLocaleString("en-IN")}</span>
-          </div>
+      <ul className={styles.track}>
+        {rows.map(([t, text, now], i) => (
+          <li key={i} data-row data-done={now ? undefined : ""} data-now={now ? "" : undefined}>
+            <span className="mono">{t}</span>
+            {text}
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }
 
 function BookPanel() {
   const rows = [
-    ["Truck", "RJ14 GB 4521, 32 ft container"],
-    ["Owner", "Gurpreet Singh, Kundli"],
-    ["Driver", "Suresh, 98290 41234"],
-    ["Rate", "₹36,500"],
-    ["Under your max", "₹1,500"],
-    ["Time to book", "2 min 48 s"],
+    ["Truck", "UP14 FT 9032, 32 ft container"],
+    ["Owner", "Mohan Lal, Ghaziabad"],
+    ["Driver", "Pappu, 97170 55620"],
+    ["Rate", "₹35,500"],
+    ["Under the first deal", "₹1,500"],
+    ["Under your max", "₹2,500"],
   ];
   return (
     <div className={styles.sheet}>
@@ -105,32 +126,7 @@ function BookPanel() {
   );
 }
 
-function FollowPanel() {
-  return (
-    <div className={styles.sheet}>
-      <p className={`${styles.sheetHead} mono`}>
-        <span>Check call, 6:45 am</span>
-        <span>Driver Suresh</span>
-      </p>
-      <ul className={styles.track}>
-        <li data-done data-row>
-          <span className="mono">6:40</span>Loaded at Okhla
-        </li>
-        <li data-done data-row>
-          <span className="mono">8:15</span>Crossed Manesar
-        </li>
-        <li data-now data-row>
-          <span className="mono">9:50</span>Past Neemrana
-        </li>
-        <li data-row>
-          <span className="mono">13:00</span>Jaipur, expected
-        </li>
-      </ul>
-    </div>
-  );
-}
-
-const PANELS = [CallPanel, HagglePanel, BookPanel, FollowPanel];
+const PANELS = [IntakePanel, FanPanel, BoardPanel, BookPanel];
 
 export default function Steps() {
   const frame = useRef<HTMLDivElement>(null);
@@ -167,8 +163,8 @@ export default function Steps() {
           </h2>
         </div>
         <p className={styles.desc}>
-          Bhaada fits into how you already work. You keep your owners, your rates and your shippers. It makes the calls,
-          sticks to your budget and tells you what happened.
+          You keep your owners, your rates and your shippers. Bhaada takes one call from you, makes six at once, plays
+          the owners&apos; rates against each other within your budget and tells you what happened.
         </p>
       </div>
 

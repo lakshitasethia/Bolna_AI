@@ -10,6 +10,7 @@ export interface Contact {
 
 export interface Persona {
   available: boolean;
+  noAnswer?: boolean;
   open: number; // first quote
   floor: number; // lowest they'll go
   concede: number; // how much they drop per round
@@ -26,6 +27,7 @@ export type CallStatus =
   | "agreed" // owner agreed within budget, waiting for the other calls
   | "booked" // won the load
   | "released" // agreed, but another truck was cheaper
+  | "outbid" // within budget, but wouldn't beat a truck another agent had locked
   | "too_expensive"
   | "not_free"
   | "call_later"
@@ -36,6 +38,7 @@ export const TERMINAL: CallStatus[] = [
   "agreed",
   "booked",
   "released",
+  "outbid",
   "too_expensive",
   "not_free",
   "call_later",
@@ -51,6 +54,8 @@ export interface Turn {
 
 export interface Call {
   id: string;
+  agent: string; // "A", "B", ... one voice agent per owner
+  live: boolean; // a real Bolna call, or a simulated owner
   contact: Contact;
   status: CallStatus;
   quotes: number[];
@@ -59,6 +64,7 @@ export interface Call {
   vehicle?: string;
   driverPhone?: string;
   transcript: Turn[];
+  rival?: number; // the locked rate this agent last used as leverage
   startedAt?: number;
   endedAt?: number;
   executionId?: string;
@@ -81,6 +87,15 @@ export interface SimState {
   pendingFinal?: boolean;
 }
 
+// What the agents on one load tell each other.
+export interface BoardEvent {
+  at: number;
+  agent: string;
+  kind: "locked" | "beat" | "backup" | "broadcast" | "outbid" | "booked" | "no_truck";
+  rate?: number;
+  text: string;
+}
+
 export interface Booking {
   callId: string;
   ownerName: string;
@@ -88,6 +103,7 @@ export interface Booking {
   vehicle: string;
   driverPhone: string;
   savedVsCeiling: number;
+  savedVsFirst: number; // how far the agents pushed below the first truck that agreed
   seconds: number;
 }
 
@@ -103,8 +119,13 @@ export interface Load {
   target: number;
   ceiling: number;
   mode: "sim" | "live";
+  source: "desk" | "phone"; // posted from the desk, or the transporter phoned it in
+  session?: string; // the desk tab that started the phone-in
+  transporterPhone?: string;
+  intake?: Turn[]; // the transporter's call, when it was phoned in
   status: "calling" | "booked" | "no_truck";
   calls: Call[];
+  board: BoardEvent[];
   booking?: Booking;
 }
 
@@ -119,4 +140,8 @@ export interface LoadInput {
   ceiling: number;
   contacts: Contact[];
   mode: "sim" | "live";
+  source?: Load["source"];
+  session?: string;
+  transporterPhone?: string;
+  intake?: Turn[];
 }

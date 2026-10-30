@@ -9,6 +9,7 @@ const LABEL: Record<CallStatus, string> = {
   agreed: "Agreed",
   booked: "Booked",
   released: "Cheaper truck found",
+  outbid: "Outbid",
   too_expensive: "Too expensive",
   not_free: "Truck not free",
   call_later: "Call later",
@@ -58,6 +59,10 @@ export function CallCard({ call, lines = 3 }: { call: Call; lines?: number }) {
     <article className={styles.card} data-status={call.status}>
       <header className={styles.head}>
         <div>
+          <p className={`${styles.agent} mono`}>
+            Agent {call.agent}
+            <span data-live={call.live}>{call.live ? "Real call" : "Simulated"}</span>
+          </p>
           <h3 className={styles.name}>{call.contact.name}</h3>
           <p className={styles.meta}>
             {call.contact.city}, {call.contact.truck}
@@ -67,6 +72,10 @@ export function CallCard({ call, lines = 3 }: { call: Call; lines?: number }) {
       </header>
 
       <Ladder call={call} />
+
+      {call.rival !== undefined && !["booked", "released"].includes(call.status) && (
+        <p className={`${styles.rival} mono`}>Told the owner a truck is ready at {inr(call.rival)}</p>
+      )}
 
       {recent.length > 0 && (
         <ul className={styles.transcript} aria-live="polite">

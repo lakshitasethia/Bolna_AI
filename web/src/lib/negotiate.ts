@@ -18,10 +18,12 @@ export type Decision =
   | { action: "counter"; offer: number }
   | { action: "decline"; lastOffer: number };
 
+export const STEP = 500;
+
 const roundDown = (n: number, step: number) => Math.floor(n / step) * step;
 
 export function decide(terms: Terms, history: History, quote: number, isFinal = false): Decision {
-  const step = terms.step ?? 500;
+  const step = terms.step ?? STEP;
   const maxRounds = terms.maxRounds ?? 3;
   const { target, ceiling } = terms;
 
@@ -55,13 +57,19 @@ export function decide(terms: Terms, history: History, quote: number, isFinal = 
 export const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 // A line the voice agent can say for each decision. The LLM may rephrase it.
-export function sayFor(decision: Decision, ownerName: string): string {
+// `rival` is a rate another agent really has locked on this load; it is the
+// only competing price the agent is ever allowed to mention.
+export function sayFor(decision: Decision, ownerName: string, rival?: number): string {
   switch (decision.action) {
     case "accept":
-      return `Theek hai ${ownerName} ji, ${inr(decision.rate)} pakka. Gaadi number aur driver ka number bata dijiye.`;
+      return `Theek hai ${ownerName} ji, ${inr(decision.rate)} note kar liya. Gaadi number aur driver ka number bata dijiye.`;
     case "counter":
-      return `${ownerName} ji, ${inr(decision.offer)} tak ho jayega. Chalega?`;
+      return rival
+        ? `${ownerName} ji, ek gaadi ${inr(rival)} mein mil rahi hai. ${inr(decision.offer)} mein karoge toh load aapka.`
+        : `${ownerName} ji, ${inr(decision.offer)} tak ho jayega. Chalega?`;
     case "decline":
-      return `Itna budget nahi hai ${ownerName} ji. Agli baar zaroor. Dhanyavaad!`;
+      return rival
+        ? `${ownerName} ji, ek gaadi ${inr(rival)} mein lag rahi hai, usse upar nahi ja sakte. Agli baar zaroor. Dhanyavaad!`
+        : `Itna budget nahi hai ${ownerName} ji. Agli baar zaroor. Dhanyavaad!`;
   }
 }

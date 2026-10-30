@@ -1,7 +1,7 @@
 // Bolna agent webhook: call status updates and the final transcript.
 import { settleAndNotify } from "@/lib/finish.ts";
 import { isDone } from "@/lib/loads.ts";
-import { findCallByExecution } from "@/lib/store.ts";
+import { findCallByExecution, intakeSession, latestForSession } from "@/lib/store.ts";
 import type { Turn } from "@/lib/types.ts";
 
 interface Execution {
@@ -15,6 +15,15 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Execution | null;
   const executionId = body?.execution_id ?? body?.id;
   const found = executionId ? findCallByExecution(executionId) : undefined;
+
+  // The transporter's phone-in: keep its transcript on the load it posted.
+  const session = executionId ? intakeSession(executionId) : undefined;
+  if (!found && session && body?.transcript) {
+    const load = latestForSession(session);
+    if (load) load.intake = parseTranscript(body.transcript, Date.now());
+    return Response.json({ ok: true });
+  }
+
   if (!body || !found) return Response.json({ ok: true, ignored: true });
 
   const { load, call } = found;

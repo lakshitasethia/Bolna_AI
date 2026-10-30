@@ -161,10 +161,134 @@
   cursor: pointer;
 }
 
-.add:hover {
+.add:hover:not(:disabled) {
   border-style: solid;
   background: var(--ink);
   color: var(--paper);
+}
+
+.add:disabled,
+.call:disabled {
+  color: var(--faint);
+  border-color: var(--faint);
+  cursor: not-allowed;
+}
+
+.legend {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.lead {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  max-width: 34em;
+}
+
+.lineButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.call {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 200ms ease;
+}
+
+.call:hover:not(:disabled) {
+  background: var(--brand-ink);
+}
+
+.call:disabled {
+  background: transparent;
+}
+
+.call[data-on] {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.meter {
+  width: 4px;
+  height: 14px;
+  background: var(--brand);
+  transform-origin: center bottom;
+  transition: transform 90ms linear;
+}
+
+.intake {
+  border: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.intakeHead {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.intake > .hint {
+  padding: 10px;
+}
+
+.intakeTurns {
+  list-style: none;
+  margin: 0;
+  padding: 10px;
+  display: grid;
+  gap: 7px;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.intakeTurns li {
+  animation: in 260ms ease-out both;
+}
+
+.intakeTurns li[data-who="owner"] {
+  color: var(--muted);
+}
+
+.intakeTurns span {
+  margin-right: 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+@keyframes in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+.or {
+  margin: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink-2);
 }
 
 .modes {
@@ -308,6 +432,16 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intakeTurns li {
+    animation: none;
+  }
+
+  .meter {
+    transition: none;
+  }
 }
 
 @media (max-width: 900px) {

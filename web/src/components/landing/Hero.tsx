@@ -9,8 +9,8 @@ import styles from "./Hero.module.css";
 // Marker positions in the TruckScene viewBox (-60 60 1380 410).
 const VB = { x: -60, y: 60, w: 1380, h: 410 };
 const TIPS = [
-  { x: 285.5, y: 199.5, code: "CALL 02", title: "Gurpreet Singh, Kundli", body: "Asked ₹39,000. Booked at ₹36,500." },
-  { x: 831.5, y: 227.5, code: "LOAD 0417", title: "Okhla to Jaipur, 20 ton", body: "Booked ₹1,500 under your max." },
+  { x: 285.5, y: 199.5, code: "AGENT F", title: "Mohan Lal, Ghaziabad", body: "Asked ₹41,000. Beat ₹36,000. Booked at ₹35,500." },
+  { x: 831.5, y: 227.5, code: "LOAD 0417", title: "Okhla to Jaipur, 20 ton", body: "One call in, six agents out. Booked in 25 s." },
 ];
 const pct = (v: number, o: number, s: number) => `${((v - o) / s) * 100}%`;
 
@@ -273,11 +273,11 @@ export default function Hero() {
           <dl className={`${styles.table} mono`} data-pre-table>
             <dt className={styles.welcome}>Welcome to Bhaada</dt>
             <dt>Type</dt>
-            <dd>Voice AI carrier desk</dd>
+            <dd>Voice AI freight desk, end to end</dd>
             <dt>Founded</dt>
             <dd>2026</dd>
             <dt>Focus</dt>
-            <dd>Booking trucks by phone, in Hindi and Hinglish</dd>
+            <dd>One call in, six agents out, in Hindi</dd>
             <dt>Lane</dt>
             <dd>Okhla, Delhi to Jaipur on NH 48</dd>
           </dl>

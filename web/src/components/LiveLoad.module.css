@@ -4,7 +4,7 @@
   border: 1px solid var(--ink);
   display: grid;
   align-content: start;
-  min-height: 470px;
+  min-height: 590px;
 }
 
 .chrome {
@@ -62,13 +62,57 @@
 }
 
 .calls {
+  list-style: none;
+  margin: 0 12px 12px;
+  padding: 0;
+  border: 1px solid var(--line);
+}
+
+.row {
   display: grid;
-  gap: 8px;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13.5px;
+  transition: opacity 300ms ease, background-color 300ms ease;
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.row strong {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row[data-status="booked"] {
+  background: var(--brand-soft);
+}
+
+.row[data-status="released"],
+.row[data-status="outbid"],
+.row[data-status="not_free"],
+.row[data-status="no_answer"],
+.row[data-status="too_expensive"] {
+  opacity: 0.55;
+}
+
+.price {
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+}
+
+.board {
   padding: 0 12px 12px;
 }
 
 @media (max-width: 560px) {
   .window {
-    min-height: 560px;
+    min-height: 620px;
   }
 }

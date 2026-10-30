@@ -1,8 +1,15 @@
-import { bolnaConfigured, placeCall } from "@/lib/bolna.ts";
-import { createLoad } from "@/lib/loads.ts";
-import { startSim } from "@/lib/simulate.ts";
-import { saveLoad } from "@/lib/store.ts";
+import { bolnaConfigured } from "@/lib/bolna.ts";
+import { dispatch } from "@/lib/dispatch.ts";
+import { createLoad, hasPhone } from "@/lib/loads.ts";
+import { latestForSession, saveLoad } from "@/lib/store.ts";
 import type { LoadInput } from "@/lib/types.ts";
+
+// The desk polls this after a phone-in, to find the load the transporter just posted.
+export async function GET(req: Request) {
+  const session = new URL(req.url).searchParams.get("session");
+  const load = session ? latestForSession(session) : undefined;
+  return load ? Response.json(load) : Response.json({ error: "No load yet." }, { status: 404 });
+}
 
 export async function POST(req: Request) {
   const input = (await req.json().catch(() => null)) as LoadInput | null;
@@ -12,23 +19,7 @@ export async function POST(req: Request) {
   const load = createLoad(input!);
   saveLoad(load);
 
-  if (load.mode === "sim") {
-    startSim(load);
-  } else {
-    await Promise.all(
-      load.calls.map(async (call) => {
-        try {
-          call.executionId = await placeCall(load, call);
-          call.status = "ringing";
-          call.startedAt = Date.now();
-        } catch (err) {
-          call.status = "failed";
-          call.endedAt = Date.now();
-          call.transcript.push({ who: "agent", text: `Call not placed: ${(err as Error).message}`, at: Date.now() });
-        }
-      }),
-    );
-  }
+  await dispatch(load);
 
   return Response.json(load, { status: 201 });
 }
@@ -41,8 +32,9 @@ function validate(input: LoadInput | null): string | null {
   if (!input.contacts?.length) return "Add at least one truck owner to call.";
   if (input.mode === "live") {
     if (!bolnaConfigured()) return "Live calls need BOLNA_API_KEY and BOLNA_AGENT_ID on the server.";
-    if (input.contacts.some((c) => c.phone.replace(/\D/g, "").length < 10)) {
-      return "Every owner needs a 10-digit phone number for live calls.";
+    if (!input.contacts.some(hasPhone)) return "Add a 10-digit phone number for at least one owner.";
+    if (input.contacts.some((c) => !hasPhone(c) && !c.persona)) {
+      return "Owners without a phone number are simulated, so they need a simulated persona.";
     }
   }
   return null;

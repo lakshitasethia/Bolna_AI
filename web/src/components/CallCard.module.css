@@ -13,6 +13,7 @@
 }
 
 .card[data-status="released"],
+.card[data-status="outbid"],
 .card[data-status="not_free"],
 .card[data-status="too_expensive"],
 .card[data-status="no_answer"],
@@ -26,6 +27,35 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+}
+
+.agent {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.agent span {
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.agent span[data-live="true"] {
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+
+.rival {
+  margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--brand-ink);
 }
 
 .name {

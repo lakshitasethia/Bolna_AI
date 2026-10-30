@@ -1,0 +1,6 @@
+chatterbox-tts
+# chatterbox's watermarker imports pkg_resources, which newer setuptools dropped
+setuptools<81
+fastapi
+uvicorn
+soundfile

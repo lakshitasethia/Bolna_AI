@@ -1,0 +1,135 @@
+// Creates (or updates) Bhaada's two Bolna agents and points their tools and
+// webhook at PUBLIC_URL. Reads web/.env.local, prints the agent ids to add.
+//
+//   node scripts/bolna-setup.mjs            create or update both agents
+//   node scripts/bolna-setup.mjs --print    print the agent JSON, call nothing
+//
+// Env: BOLNA_API_KEY, PUBLIC_URL, BHAADA_TOOL_TOKEN, and optionally
+// BOLNA_AGENT_ID / BOLNA_INTAKE_AGENT_ID (update instead of create) and
+// BHAADA_TTS_VOICE (a Custom TTS voice registered in Bolna, e.g. Chatterbox).
+import { readFileSync } from "node:fs";
+import {
+  CALLER_PROMPT,
+  CALLER_WELCOME,
+  callerTools,
+  INTAKE_PROMPT,
+  INTAKE_WELCOME,
+  intakeTools,
+} from "./agents.mjs";
+
+const API = "https://api.bolna.ai";
+
+function loadEnv() {
+  try {
+    for (const line of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split("\n")) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+      if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
+  } catch {
+    // No .env.local: rely on the shell.
+  }
+}
+
+// A Hindi voice: Chatterbox through Bolna's Custom TTS when one is registered,
+// otherwise Sarvam's Bulbul, which Bolna hosts.
+function synthesizer() {
+  const voice = process.env.BHAADA_TTS_VOICE;
+  if (voice) {
+    return { provider: "custom", provider_config: { voice, model: "custom" }, stream: true, buffer_size: 150, audio_format: "wav" };
+  }
+  return {
+    provider: "sarvam",
+    provider_config: { voice: "Suhani", voice_id: "suhani", model: "bulbul:v3", language: "hi" },
+    stream: true,
+    buffer_size: 150,
+    audio_format: "wav",
+  };
+}
+
+function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds }) {
+  return {
+    agent_config: {
+      agent_name: name,
+      agent_welcome_message: welcome,
+      webhook_url: webhook,
+      tasks: [
+        {
+          task_type: "conversation",
+          toolchain: { execution: "sequential", pipelines: [["transcriber", "llm", "synthesizer"]] },
+          tools_config: {
+            llm_agent: {
+              agent_type: "simple_llm_agent",
+              agent_flow_type: "streaming",
+              llm_config: { provider: "openai", model: "gpt-5.4-mini", max_tokens: 200, temperature: 1 },
+            },
+            synthesizer: synthesizer(),
+            transcriber: { provider: "sarvam", model: "saaras:v3", language: "hi", stream: true, encoding: "linear16", sampling_rate: 16000, endpointing: 250 },
+            input: { provider: "plivo", format: "wav" },
+            output: { provider: "plivo", format: "wav" },
+            api_tools: {
+              tools: tools.map((t) => t.definition),
+              tools_params: Object.fromEntries(tools.map((t) => [t.definition.name, t.params])),
+            },
+          },
+          task_config: { call_terminate: maxSeconds, hangup_after_silence: 12 },
+        },
+      ],
+    },
+    agent_prompts: { task_1: { system_prompt: prompt } },
+  };
+}
+
+async function bolna(method, path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${process.env.BOLNA_API_KEY}`, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}: ${text}`);
+  return text ? JSON.parse(text) : {};
+}
+
+async function upsert(id, body) {
+  if (id) {
+    await bolna("PUT", `/v2/agent/${id}`, body);
+    return id;
+  }
+  return (await bolna("POST", "/v2/agent", body)).agent_id;
+}
+
+loadEnv();
+const host = (process.env.PUBLIC_URL ?? "").replace(/\/$/, "");
+const token = process.env.BHAADA_TOOL_TOKEN ?? "";
+const print = process.argv.includes("--print");
+
+if (!host.startsWith("https://")) throw new Error("Set PUBLIC_URL to the https tunnel or deploy URL, e.g. https://abc.trycloudflare.com");
+if (!token) throw new Error("Set BHAADA_TOOL_TOKEN (any long random string) so Bolna's tool calls are authenticated");
+
+const caller = agentBody({
+  name: "Bhaada caller",
+  welcome: CALLER_WELCOME,
+  prompt: CALLER_PROMPT,
+  tools: callerTools(host, token),
+  webhook: `${host}/api/bolna/webhook`,
+  maxSeconds: 240,
+});
+const intake = agentBody({
+  name: "Bhaada intake",
+  welcome: INTAKE_WELCOME,
+  prompt: INTAKE_PROMPT,
+  tools: intakeTools(host, token),
+  webhook: `${host}/api/bolna/webhook`,
+  maxSeconds: 180,
+});
+
+if (print) {
+  console.log(JSON.stringify({ caller, intake }, null, 2));
+} else {
+  if (!process.env.BOLNA_API_KEY) throw new Error("Set BOLNA_API_KEY");
+  const callerId = await upsert(process.env.BOLNA_AGENT_ID, caller);
+  const intakeId = await upsert(process.env.BOLNA_INTAKE_AGENT_ID, intake);
+  console.log("Agents ready. Put these in web/.env.local and restart the dev server:\n");
+  console.log(`BOLNA_AGENT_ID=${callerId}`);
+  console.log(`BOLNA_INTAKE_AGENT_ID=${intakeId}`);
+}

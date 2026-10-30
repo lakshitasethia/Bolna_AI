@@ -55,7 +55,7 @@ export default function Nav({ cta = true }: { cta?: boolean }) {
         ))}
         {cta && (
           <Link href="/desk" className={`${styles.cell} ${styles.cta} mono`} data-nav-link>
-            <span>Post a load</span>
+            <span>Phone in a load</span>
             <Arrow />
           </Link>
         )}

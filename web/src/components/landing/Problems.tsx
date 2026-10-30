@@ -131,8 +131,8 @@ export default function Problems() {
         <div className={styles.right}>
           <div className={styles.copy}>
             <p className={styles.scrub} data-scrub>
-              Thirty phone calls for one truck shouldn&apos;t eat your morning. Bhaada makes the calls, bargains in Hindi
-              and hands you a booked truck, so you can get back to your shippers.
+              Thirty phone calls for one truck shouldn&apos;t eat your morning. Make one call to Bhaada. Six agents
+              ring your owners at once, bargain in Hindi against each other&apos;s rates and hand you the cheapest truck.
             </p>
             <a href="#route" className={`${styles.btn} mono`}>
               <span>See how</span>

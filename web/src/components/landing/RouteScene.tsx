@@ -6,23 +6,23 @@ import { DESKTOP, gsap, SplitText } from "./motion";
 import styles from "./RouteScene.module.css";
 
 const STEPS = [
-  "A transporter in Okhla needs a 32 ft truck to Jaipur by 6 am, and starts calling owners one by one.",
-  "Every call is the same: is the truck free, where is it, what's the rate. Then the haggling starts.",
-  "Bhaada makes all of those calls at once, bargains within your budget and books the cheapest truck.",
+  "A transporter in Okhla needs a 32 ft truck to Jaipur by 6 am. Normally that's a morning of calls, one owner at a time.",
+  "With Bhaada they make one call, in Hindi, and say the load. Six agents start ringing six owners in the same minute.",
+  "When one owner agrees, that agent tells the other five. They only book below that rate, and the cheapest truck wins.",
 ];
 
 const CARDS: Record<(typeof OWNERS)[number]["id"], { code: string; title: string; body: string; side: "l" | "r" }> = {
-  raju: { code: "OWNER 01", title: "Raju Yadav, Okhla", body: "Asked ₹42,000 and stopped at ₹37,500. A cheaper truck came first.", side: "l" },
-  gurpreet: { code: "BOOKED", title: "Gurpreet Singh, Kundli", body: "Asked ₹39,000. Booked at ₹36,500, ₹1,500 under your max.", side: "l" },
-  anwar: { code: "OWNER 03", title: "Anwar Khan, Gurugram", body: "Truck is in Ludhiana until parso. Bhaada noted it for next time.", side: "r" },
-  check: { code: "CHECK CALL", title: "Suresh, driver, Neemrana", body: "Loaded at 6:40 am. Crossed Neemrana. Jaipur by 1 pm.", side: "r" },
+  raju: { code: "AGENT A", title: "Raju Yadav, Okhla", body: "Agreed first at ₹37,000. Agent A told the other five to beat it.", side: "l" },
+  gurpreet: { code: "AGENT B", title: "Gurpreet Singh, Kundli", body: "Asked ₹39,000. Beat Raju at ₹36,000, kept as backup.", side: "l" },
+  anwar: { code: "AGENT C", title: "Anwar Khan, Gurugram", body: "Truck is in Ludhiana until parso. Noted for next time.", side: "r" },
+  check: { code: "BOOKED", title: "Mohan Lal, Ghaziabad", body: "Heard a truck was ready at ₹36,000. Took ₹35,500.", side: "r" },
 };
 
 const FEATURES = [
-  "Calls owners in Hindi and Hinglish.",
-  "Bargains in ₹500 steps.",
+  "One agent per owner, all at once.",
+  "Each locked rate goes to every agent.",
   "Never goes past your maximum.",
-  "Sends you the vehicle and driver.",
+  "Books the cheapest, releases the rest.",
 ];
 
 export default function RouteScene() {
@@ -139,11 +139,11 @@ export default function RouteScene() {
         <i className="plus" data-corner="br" />
 
         <p className={styles.headA} aria-hidden>
-          <span data-head-a>Right there on the line</span>
+          <span data-head-a>Six lines, one price</span>
           <i className={styles.dot} data-dot />
         </p>
         <h2 id="route-title" className={styles.headB} data-head-b>
-          For the whole trip
+          Every agent hears every deal
         </h2>
 
         <div className={styles.map} data-map>
@@ -169,7 +169,7 @@ export default function RouteScene() {
                   onBlur={() => setActive(null)}
                 />
                 <div className={styles.card}>
-                  <span className={`${styles.code} mono`} data-booked={o.id === "gurpreet"}>
+                  <span className={`${styles.code} mono`} data-booked={o.id === "check"}>
                     {c.code}
                   </span>
                   <strong>{c.title}</strong>
@@ -194,10 +194,11 @@ export default function RouteScene() {
 
         <div className={styles.panel} data-panel>
           <p className={`${styles.panelLabel} mono`}>Your owners. Your rates. One desk.</p>
-          <h3 className={styles.panelTitle}>Run a dispatcher on every phone line</h3>
+          <h3 className={styles.panelTitle}>A live auction across your owner network</h3>
           <p className={styles.panelBody}>
-            Bhaada calls the owners you already work with, in the language they speak. It knows your budget and never
-            says it out loud. Every rupee it offers is checked by our server, not left to the voice model.
+            Every agent works to the same board. The moment one owner agrees, the rest can only take a lower rate, and
+            they can tell their owner that a truck is already lined up at that price. It&apos;s always a real price,
+            never a bluff, and every rupee is checked by our server, not left to the voice model.
           </p>
           <ul className={styles.features}>
             {FEATURES.map((f, i) => (

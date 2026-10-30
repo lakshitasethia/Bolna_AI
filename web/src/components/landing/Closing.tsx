@@ -154,11 +154,11 @@ export default function Closing() {
           See Bhaada book a truck on your lane
         </h2>
         <p className={styles.sub}>
-          Post a load and watch Bhaada call owners. Simulated owners work right away. Real calls switch on once Bolna is
-          connected.
+          Phone a load in, or play a sample call, and watch six agents work it at once. Simulated owners work right
+          away. Real calls switch on once Bolna is connected.
         </p>
         <Link href="/desk" className={`${styles.btn} mono`}>
-          <span>Post a load</span>
+          <span>Phone in a load</span>
           <i>
             <Arrow />
           </i>
@@ -170,7 +170,7 @@ export default function Closing() {
 
       <footer className={styles.footer}>
         <div className={styles.grid}>
-          <p className={styles.tagline}>A voice agent that books your trucks in Hindi</p>
+          <p className={styles.tagline}>One call in, six agents out. Trucks booked in Hindi.</p>
           <div className={styles.col}>
             <p className="mono">Product</p>
             <Link href="/desk">Booking desk</Link>
