@@ -2,7 +2,7 @@
 // truck owner names a price, and says back what we return. Decisions use the
 // load's shared board, so a rate another agent has locked lowers this one's
 // budget the moment it happens.
-import { declineStatus, recordLock, recordOutbid, termsFor } from "@/lib/board.ts";
+import { declineStatus, quoteGuard, recordLock, recordOutbid, termsFor } from "@/lib/board.ts";
 import { parseRupees, readParams, toolAuthorized } from "@/lib/bolna.ts";
 import { decide, sayFor } from "@/lib/negotiate.ts";
 import { findCall } from "@/lib/store.ts";
@@ -19,6 +19,9 @@ export async function POST(req: Request) {
   if (!(quote > 0)) {
     return Response.json({ action: "ask_again", say: "Maaf kijiye, rate dobara bataiye? Kitne rupaye?" });
   }
+
+  const guarded = quoteGuard(call, quote);
+  if (guarded) return Response.json(guarded);
 
   const isFinal = /^(true|yes|1|haan)$/i.test(p.is_final ?? "");
   const terms = termsFor(load, call);
