@@ -63,6 +63,8 @@ export interface Call {
   agreedRate?: number;
   vehicle?: string;
   driverPhone?: string;
+  detailRetries?: { vehicle_number?: number; driver_phone?: number };
+  detailsToCheck?: boolean; // the owner's numbers never passed our checks; a person should confirm them
   transcript: Turn[];
   rival?: number; // the locked rate this agent last used as leverage
   startedAt?: number;
@@ -102,6 +104,7 @@ export interface Booking {
   rate: number;
   vehicle: string;
   driverPhone: string;
+  detailsToCheck: boolean;
   savedVsCeiling: number;
   savedVsFirst: number; // how far the agents pushed below the first truck that agreed
   seconds: number;

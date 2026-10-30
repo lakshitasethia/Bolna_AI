@@ -11,6 +11,7 @@ export async function notifyBooked(load: Load) {
   const text = [
     `✅ Booked: ${load.from} → ${load.to}, ${load.pickup}`,
     `${b.ownerName}, ${b.vehicle}, driver ${b.driverPhone}`,
+    ...(b.detailsToCheck ? ["⚠️ Vehicle or driver number unclear, confirm with the owner"] : []),
     `${inr(b.rate)} (${inr(b.savedVsCeiling)} under your max)`,
     ...(b.savedVsFirst > 0 ? [`Agents pushed ${inr(b.savedVsFirst)} below the first truck that agreed`] : []),
     `${load.calls.length} agents in parallel, ${b.seconds}s`,

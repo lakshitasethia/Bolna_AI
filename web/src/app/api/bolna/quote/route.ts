@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
   const { load, call } = found;
   const quote = parseRupees(p.quote);
-  if (!Number.isFinite(quote)) {
+  if (!(quote > 0)) {
     return Response.json({ action: "ask_again", say: "Maaf kijiye, rate dobara bataiye? Kitne rupaye?" });
   }
 

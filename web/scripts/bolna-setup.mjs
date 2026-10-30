@@ -18,6 +18,7 @@ import {
 } from "./agents.mjs";
 
 const API = "https://api.bolna.ai";
+const TRUCK_WORDS = "container, 32 foot, 20 foot, 24 foot, open body, trailer, taurus, Eicher, Tata, Ashok Leyland, canter, LPT";
 
 function loadEnv() {
   try {
@@ -46,7 +47,7 @@ function synthesizer() {
   };
 }
 
-function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds }) {
+function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds, hints }) {
   return {
     agent_config: {
       agent_name: name,
@@ -63,7 +64,18 @@ function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds }) {
               llm_config: { provider: "openai", model: "gpt-5.4-mini", max_tokens: 200, temperature: 1 },
             },
             synthesizer: synthesizer(),
-            transcriber: { provider: "sarvam", model: "saaras:v3", language: "hi", stream: true, encoding: "linear16", sampling_rate: 16000, endpointing: 250 },
+            transcriber: {
+              provider: "sarvam",
+              model: "saaras:v4",
+              language: "hi",
+              stream: true,
+              encoding: "linear16",
+              sampling_rate: 16000,
+              // Owners pause between the parts of a number; 250 ms cut them into fragments.
+              endpointing: 700,
+              context: hints.context,
+              keywords: hints.keywords,
+            },
             input: { provider: "plivo", format: "wav" },
             output: { provider: "plivo", format: "wav" },
             api_tools: {
@@ -71,7 +83,14 @@ function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds }) {
               tools_params: Object.fromEntries(tools.map((t) => [t.definition.name, t.params])),
             },
           },
-          task_config: { call_terminate: maxSeconds, hangup_after_silence: 12 },
+          task_config: {
+            call_terminate: maxSeconds,
+            hangup_after_silence: 15,
+            incremental_delay: 1200,
+            check_if_user_online: true,
+            check_user_online_message: "जी, आप सुन रहे हैं?",
+            trigger_user_online_message_after: 10,
+          },
         },
       ],
     },
@@ -113,6 +132,11 @@ const caller = agentBody({
   tools: callerTools(host, token),
   webhook: `${host}/api/bolna/webhook`,
   maxSeconds: 240,
+  hints: {
+    context:
+      "Hindi phone call with an Indian truck owner about a freight load. They name rates in rupees, read out a vehicle number like MH 12 AB 1234 letter by letter, and a ten digit mobile number digit by digit.",
+    keywords: `${TRUCK_WORDS}, MH, DL, HR, RJ, UP, GJ, KA, PB, MP, hazaar, lakh, driver, gaadi`,
+  },
 });
 const intake = agentBody({
   name: "Bhaada intake",
@@ -121,6 +145,11 @@ const intake = agentBody({
   tools: intakeTools(host, token),
   webhook: `${host}/api/bolna/webhook`,
   maxSeconds: 180,
+  hints: {
+    context:
+      "Hindi phone call where a transporter posts a freight load: pickup and drop cities in India, a pickup time, a truck type and size, a weight in tons, and a maximum rate in rupees.",
+    keywords: `${TRUCK_WORDS}, ton, hazaar, lakh, Okhla, Delhi, Jaipur, Mumbai, Pune, Ahmedabad, Ludhiana, Bihar`,
+  },
 });
 
 if (print) {

@@ -4,6 +4,7 @@ import { recordLock } from "@/lib/board.ts";
 import { parseRupees, readParams, toolAuthorized } from "@/lib/bolna.ts";
 import { settleAndNotify } from "@/lib/finish.ts";
 import { findCall } from "@/lib/store.ts";
+import { checkDetails } from "@/lib/vehicle.ts";
 import type { CallStatus } from "@/lib/types.ts";
 
 const OUTCOMES: Record<string, CallStatus> = {
@@ -37,10 +38,13 @@ export async function POST(req: Request) {
         say: "Ek minute, rate confirm karna padega. Main office se baat karke callback karti hoon.",
       });
     }
+    const details = checkDetails((call.detailRetries ??= {}), p.vehicle_number, p.driver_phone);
+    if (details.retry) return Response.json({ ok: false, retry: details.retry, say: details.say });
     const fresh = call.agreedRate !== rate;
     call.agreedRate = rate;
-    call.vehicle = (p.vehicle_number ?? "").toUpperCase();
-    call.driverPhone = p.driver_phone ?? "";
+    call.vehicle = details.vehicle;
+    call.driverPhone = details.driverPhone;
+    call.detailsToCheck = details.toCheck;
     // The owner took one of our offers without the agent submitting it first.
     if (fresh) recordLock(load, call, Date.now());
   }

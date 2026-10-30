@@ -430,6 +430,7 @@ export default function Desk() {
                         {load.booking.savedVsFirst > 0 && `, ${inr(load.booking.savedVsFirst)} under the first truck that agreed`},{" "}
                         {load.booking.seconds}s
                       </span>
+                      {load.booking.detailsToCheck && <span>Vehicle or driver number unclear. Confirm with the owner.</span>}
                     </>
                   )}
                   {load.status === "no_truck" && (

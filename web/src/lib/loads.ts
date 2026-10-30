@@ -73,6 +73,7 @@ export function settle(load: Load, now = Date.now()): boolean {
     rate: winner.agreedRate!,
     vehicle: winner.vehicle ?? "",
     driverPhone: winner.driverPhone ?? "",
+    detailsToCheck: winner.detailsToCheck ?? false,
     savedVsCeiling: load.ceiling - winner.agreedRate!,
     savedVsFirst: Math.max(0, firstLock - winner.agreedRate!),
     seconds: Math.round((now - load.createdAt) / 1000),

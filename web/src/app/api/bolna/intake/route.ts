@@ -22,11 +22,20 @@ export async function POST(req: Request) {
   const ceiling = parseRupees(p.max_rate);
   const from = p.pickup_place?.trim();
   const to = p.drop_place?.trim();
-  if (!from || !to || !(ceiling > 0)) {
-    return Response.json({
-      ok: false,
-      say: "Ek baar pickup, drop aur aapka maximum rate dobara bata dijiye?",
-    });
+  const when = p.pickup_time?.trim();
+  const truck = p.truck?.trim();
+  const tons = Number(p.weight_tons);
+  // Owners are about to be called with these, so nothing gets filled in by default.
+  const missing = [
+    !from && "pickup",
+    !to && "drop",
+    !when && "pickup ka time",
+    !truck && "gaadi ka type aur size",
+    !(tons > 0) && "maal ka weight",
+    !(ceiling > 0) && "maximum rate",
+  ].filter(Boolean);
+  if (missing.length) {
+    return Response.json({ ok: false, missing, say: `Yeh bata dijiye: ${missing.join(", ")}.` });
   }
 
   const session = known(p.session_id) ?? known(p.from_number);
@@ -42,11 +51,11 @@ export async function POST(req: Request) {
 
   const load = createLoad({
     transporter: known(p.transporter) ?? DEMO_LOAD.transporter,
-    from,
-    to,
-    pickup: p.pickup_time?.trim() || "jaldi",
-    truck: p.truck?.trim() || DEMO_LOAD.truck,
-    weightTons: Number(p.weight_tons) > 0 ? Number(p.weight_tons) : DEMO_LOAD.weightTons,
+    from: from!,
+    to: to!,
+    pickup: when!,
+    truck: truck!,
+    weightTons: tons,
     target,
     ceiling,
     contacts,
