@@ -198,9 +198,7 @@
 .card {
   position: relative;
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
-  min-height: 460px;
-  padding-bottom: 22px;
+  grid-template-rows: auto 1fr auto;
 }
 
 .card + .card {
@@ -208,62 +206,178 @@
 }
 
 .cardTop {
+  position: relative;
   display: flex;
   justify-content: space-between;
-  padding: 10px 12px;
+  align-items: center;
+  padding: 14px 18px;
   border-bottom: 1px dashed var(--line);
-  color: var(--ink-2);
-  font-size: 10.5px;
+  color: var(--ink);
+  font-size: 11px;
 }
 
-.cardTop span:first-child::before {
-  content: "";
-  display: inline-block;
+.cardTop > span:last-child {
+  color: var(--faint);
+}
+
+.tag {
+  transition: transform 400ms var(--ease-out);
+}
+
+.dot {
+  position: absolute;
+  left: 18px;
   width: 7px;
   height: 7px;
-  margin-right: 8px;
   background: var(--brand);
-  transform: scale(0);
-  transition: transform 300ms var(--ease-out);
+  opacity: 0;
+  transition: opacity 400ms ease;
 }
 
-.card:hover .cardTop span:first-child::before {
-  transform: none;
+.card:hover .tag {
+  transform: translateX(18px);
 }
 
+.card:hover .dot {
+  opacity: 1;
+}
+
+/* Drawing area: grey at rest, ink with a grid and corner marks on hover */
 .icon {
+  position: relative;
   display: grid;
   place-items: center;
-  padding: 18px;
-  border-bottom: 1px dashed var(--line);
+  min-height: clamp(300px, 26vw, 380px);
+  padding: 28px 18px;
+  color: var(--line);
+  transition: color 400ms ease;
 }
 
-.icon svg {
-  width: min(100%, 260px);
+.icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 400ms ease;
+  pointer-events: none;
+}
+
+.card:hover .icon {
+  color: var(--ink);
+}
+
+.card:hover .icon::after {
+  opacity: 1;
+}
+
+.iconArt {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 290px);
+}
+
+.iconArt svg {
+  display: block;
+  width: 100%;
   height: auto;
   overflow: visible;
-  transition: transform 700ms var(--ease-out);
 }
 
-.card:hover .icon svg {
-  transform: translateY(-6px);
+.card:hover .iconArt path[stroke-dasharray] {
+  animation: dashFlow 0.9s linear infinite;
+}
+
+@keyframes dashFlow {
+  to {
+    stroke-dashoffset: -15.88;
+  }
+}
+
+.corner {
+  position: absolute;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  transform: scale(0);
+  transition: transform 400ms ease;
+}
+
+.corner::before,
+.corner::after {
+  content: "";
+  position: absolute;
+  background: var(--ink);
+}
+
+.corner::before {
+  left: 5.5px;
+  width: 1px;
+  height: 12px;
+}
+
+.corner::after {
+  top: 5.5px;
+  width: 12px;
+  height: 1px;
+}
+
+.corner[data-c^="t"] {
+  top: 16px;
+}
+
+.corner[data-c^="b"] {
+  bottom: 16px;
+}
+
+.corner[data-c$="l"] {
+  left: 16px;
+}
+
+.corner[data-c$="r"] {
+  right: 16px;
+}
+
+.card:hover .corner {
+  transform: scale(1);
+}
+
+.cardText {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  min-height: 230px;
+  padding: 28px 18px 26px;
+  border-top: 1px dashed var(--line);
 }
 
 .cardTitle {
-  margin: 18px 14px 14px;
-  font-size: clamp(19px, 1.6vw, 24px);
-  line-height: 0.98;
+  margin: 0;
+  font-size: clamp(24px, 2.3vw, 36px);
+  line-height: 0.95;
   letter-spacing: -0.045em;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  max-width: 9em;
+  max-width: 8em;
 }
 
 .cardBody {
-  margin: 0 14px;
-  font-size: 13px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
   color: var(--ink-2);
   max-width: 34ch;
+}
+
+@media (hover: none) {
+  .icon {
+    color: var(--ink);
+  }
 }
 
 @media (max-width: 900px) {
@@ -313,7 +427,11 @@
     border-top: 1px solid var(--line);
   }
 
-  .card {
+  .icon {
+    min-height: 280px;
+  }
+
+  .cardText {
     min-height: 0;
   }
 }

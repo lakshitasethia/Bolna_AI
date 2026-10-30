@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Arrow } from "../Nav";
 import { IsoChats, IsoEmpty, IsoPhone, IsoRadar, TowerScene } from "./art";
-import { gsap, MOTION, SplitText } from "./motion";
+import { gsap, MOTION, prefersReduced, SplitText } from "./motion";
 import styles from "./Problems.module.css";
 
 const LANGS = [
@@ -40,6 +40,16 @@ const PROBLEMS = [
     Icon: IsoEmpty,
   },
 ];
+
+// On hover the icon redraws line by line, then its dashed guides fade in and start to flow.
+function redraw(card: HTMLElement) {
+  if (prefersReduced()) return;
+  const solid = card.querySelectorAll("svg path:not([stroke-dasharray])");
+  const dashed = card.querySelectorAll("svg path[stroke-dasharray]");
+  gsap.killTweensOf([solid, dashed]);
+  gsap.fromTo(solid, { drawSVG: "0%" }, { drawSVG: "100%", duration: 0.7, stagger: 0.09, ease: "power2.inOut" });
+  gsap.fromTo(dashed, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power1.in", delay: 0.25 + solid.length * 0.09 });
+}
 
 export default function Problems() {
   const root = useRef<HTMLElement>(null);
@@ -86,22 +96,6 @@ export default function Problems() {
           .to(signal, { v: 100, duration: 1, onUpdate: () => void (read.textContent = `Signal ${Math.round(signal.v)}%`) }, 0)
           .fromTo("[data-colour] [data-sun]", { scale: 0.86, svgOrigin: "262 196" }, { scale: 1, duration: 1 }, 0)
           .to("[data-tscan]", { autoAlpha: 0, duration: 0.06 }, 0.97);
-        gsap.utils.toArray<HTMLElement>("[data-problem]").forEach((card, i) => {
-          const trigger = { trigger: card, start: "top 80%" };
-          gsap.from(card.querySelectorAll("svg path:not([stroke-dasharray])"), {
-            drawSVG: "0%",
-            duration: 1.2,
-            delay: i * 0.12,
-            ease: "power2.inOut",
-            scrollTrigger: trigger,
-          });
-          gsap.from(card.querySelectorAll("svg path[stroke-dasharray]"), {
-            opacity: 0,
-            duration: 0.8,
-            delay: 0.6 + i * 0.12,
-            scrollTrigger: trigger,
-          });
-        });
       });
     }, root);
     return () => ctx.revert();
@@ -169,16 +163,25 @@ export default function Problems() {
 
       <ol className={styles.cards}>
         {PROBLEMS.map(({ tag, title, body, Icon }, i) => (
-          <li key={tag} className={styles.card} data-problem>
+          <li key={tag} className={styles.card} data-problem onMouseEnter={(e) => redraw(e.currentTarget)}>
             <div className={`${styles.cardTop} mono`}>
-              <span>{tag}</span>
+              <i className={styles.dot} />
+              <span className={styles.tag}>{tag}</span>
               <span>[0{i + 1}]</span>
             </div>
             <div className={styles.icon}>
-              <Icon />
+              <i className={styles.corner} data-c="tl" />
+              <i className={styles.corner} data-c="tr" />
+              <i className={styles.corner} data-c="bl" />
+              <i className={styles.corner} data-c="br" />
+              <div className={styles.iconArt}>
+                <Icon />
+              </div>
             </div>
-            <h3 className={styles.cardTitle}>{title}</h3>
-            <p className={styles.cardBody}>{body}</p>
+            <div className={styles.cardText}>
+              <h3 className={styles.cardTitle}>{title}</h3>
+              <p className={styles.cardBody}>{body}</p>
+            </div>
           </li>
         ))}
       </ol>

@@ -509,9 +509,12 @@ function iso(ox: number, oy: number) {
   return { p, poly, box, ring };
 }
 
+// Heron's dot-dash; one period is 15.88 units, which the hover flow animation steps by.
+const DASH = "0.93 2.8 9.35 2.8";
+
 function IsoFrame({ children }: { children: React.ReactNode }) {
   return (
-    <svg viewBox="0 0 240 200" aria-hidden fill="none" stroke={INK} strokeWidth="1" strokeLinejoin="round">
+    <svg viewBox="18 8 204 184" aria-hidden fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
       {children}
     </svg>
   );
@@ -524,8 +527,8 @@ export function IsoPhone() {
   for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) keys.push(g.poly([[-10 + c * 8, 6, 12 + r * 9], [-5 + c * 8, 6, 12 + r * 9], [-5 + c * 8, 6, 17 + r * 9], [-10 + c * 8, 6, 17 + r * 9]]));
   return (
     <IsoFrame>
-      <path d={g.poly([[-50, -50, 0], [50, -50, 0], [50, 50, 0], [-50, 50, 0]])} strokeDasharray="3 3" strokeOpacity=".5" />
-      <path d={b.hidden} strokeDasharray="3 3" strokeOpacity=".6" />
+      <path d={g.poly([[-50, -50, 0], [50, -50, 0], [50, 50, 0], [-50, 50, 0]])} strokeDasharray={DASH} strokeOpacity=".5" />
+      <path d={b.hidden} strokeDasharray={DASH} strokeOpacity=".6" />
       <path d={b.solid} />
       <path d={g.poly([[-11, 6, 56], [11, 6, 56], [11, 6, 94], [-11, 6, 94]])} />
       <path d={keys.join("")} strokeWidth=".8" />
@@ -548,7 +551,7 @@ export function IsoChats() {
     <IsoFrame>
       {slabs.map((s, i) => (
         <g key={i}>
-          <path d={s.b.hidden} strokeDasharray="3 3" strokeOpacity=".5" />
+          <path d={s.b.hidden} strokeDasharray={DASH} strokeOpacity=".5" />
           <path d={s.b.solid} fill="var(--paper)" />
           <path d={s.tail} fill="var(--paper)" />
           <path d={s.text} strokeWidth=".8" />
@@ -564,12 +567,12 @@ export function IsoRadar() {
   const ribs = Array.from({ length: 8 }, (_, i) => g.poly([[-30 + i * 8.5, 14, 3], [-30 + i * 8.5, 14, 25]], false)).join("");
   return (
     <IsoFrame>
-      <path d={g.ring(0, 0, 0, 62)} strokeDasharray="3 3" strokeOpacity=".55" />
-      <path d={g.ring(0, 0, 0, 44)} strokeDasharray="3 3" strokeOpacity=".35" />
-      <path d={b.hidden} strokeDasharray="3 3" strokeOpacity=".6" />
+      <path d={g.ring(0, 0, 0, 62)} strokeDasharray={DASH} strokeOpacity=".55" />
+      <path d={g.ring(0, 0, 0, 44)} strokeDasharray={DASH} strokeOpacity=".35" />
+      <path d={b.hidden} strokeDasharray={DASH} strokeOpacity=".6" />
       <path d={b.solid} />
       <path d={ribs} strokeWidth=".8" />
-      <path d={g.poly([[0, 0, 28], [0, 0, 86]], false)} strokeDasharray="2 3" />
+      <path d={g.poly([[0, 0, 28], [0, 0, 86]], false)} strokeDasharray={DASH} />
       <path d={g.ring(0, 0, 86, 7)} />
       <path d={g.ring(0, 0, 86, 16)} strokeOpacity=".4" />
     </IsoFrame>
@@ -584,7 +587,7 @@ export function IsoEmpty() {
   const t = 4;
   return (
     <IsoFrame>
-      <path d={g.poly([[-60, -46, 0], [60, -46, 0], [60, 46, 0], [-60, 46, 0]])} strokeDasharray="3 3" strokeOpacity=".5" />
+      <path d={g.poly([[-60, -46, 0], [60, -46, 0], [60, 46, 0], [-60, 46, 0]])} strokeDasharray={DASH} strokeOpacity=".5" />
       <path d={g.poly([[-42, -20, 0], [-42, -20, h]], false) + g.poly([[-42, -20, 0], [w - 42, -20, 0]], false) + g.poly([[-42, -20, 0], [-42, d - 20, 0]], false)} strokeOpacity=".7" />
       <path d={g.poly([[-42 + t, -20 + t, h], [w - 42 - t, -20 + t, h], [w - 42 - t, d - 20 - t, h], [-42 + t, d - 20 - t, h]])} />
       <path d={g.poly([[-42, -20, h], [w - 42, -20, h], [w - 42, d - 20, h], [-42, d - 20, h]])} />
