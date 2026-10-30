@@ -1,0 +1,506 @@
+.section {
+  margin: 0 var(--rail);
+  border-top: 1px solid var(--line);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 32px;
+  padding: 18px 14px 28px;
+}
+
+.label {
+  margin: 0 0 30px;
+  color: var(--ink-2);
+}
+
+.h2 {
+  margin: 0;
+  font-size: clamp(30px, 3.2vw, 48px);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+  font-weight: 600;
+  text-transform: uppercase;
+  max-width: 12em;
+}
+
+.desc {
+  margin: 0;
+  justify-self: end;
+  max-width: 42ch;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.left {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  padding: 24px 0 24px 14px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.hint [data-pointer="touch"] {
+  display: none;
+}
+
+@media (hover: none) {
+  .hint [data-pointer="fine"] {
+    display: none;
+  }
+
+  .hint [data-pointer="touch"] {
+    display: inline;
+  }
+}
+
+.bars {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+}
+
+.barItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px 120px 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 400ms ease, color 400ms ease, border-color 400ms ease;
+}
+
+.barItem:hover {
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+
+.barItem:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.barNum {
+  font-size: 10.5px;
+}
+
+.barName {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+}
+
+.barLine {
+  font-size: 13px;
+}
+
+.barDot {
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  background: var(--brand);
+  opacity: 0;
+}
+
+/* Hairline from the active step across to the drawing */
+.barDot::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 3.5px;
+  width: 41px;
+  height: 1px;
+  background: var(--brand);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 700ms var(--ease-out);
+}
+
+.barItem[data-active] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.barItem[data-active] .barNum {
+  color: var(--brand);
+}
+
+.barItem[data-active] .barDot {
+  opacity: 1;
+}
+
+.barItem[data-active] .barDot::after {
+  transform: scaleX(1);
+}
+
+.frame {
+  position: relative;
+  display: grid;
+  grid-template-areas: "p";
+  min-height: clamp(440px, 60svh, 580px);
+  margin: 24px 14px 24px 48px;
+  border: 1px solid var(--line);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 32px 32px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.frame > [data-corner="tl"] {
+  top: 6px;
+  left: 6px;
+}
+
+.frame > [data-corner="br"] {
+  bottom: 6px;
+  right: 6px;
+}
+
+.frameTag {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 3;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.panel {
+  grid-area: p;
+  display: grid;
+  place-items: center;
+  padding: clamp(24px, 4vw, 56px);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 32px 32px;
+  visibility: hidden;
+}
+
+.panel[data-state] {
+  visibility: visible;
+}
+
+.panel[data-state="active"] {
+  z-index: 2;
+}
+
+.scan {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--brand);
+  box-shadow: 0 0 0 1px rgb(250 54 0 / 0.12);
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* The sheets inside each panel */
+.sheet {
+  position: relative;
+  width: min(100%, 460px);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+}
+
+.sheetHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 7px 10px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 10.5px;
+}
+
+.owners {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.owners li {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 14px;
+}
+
+.owners li:first-child {
+  border-top: 0;
+}
+
+.owners li > span:nth-child(3) {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.owners li > span:last-child {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  font-size: 10.5px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.owners li > span:last-child[data-on="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.ring {
+  grid-row: 1 / 3;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--muted);
+}
+
+.ring[data-on="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  animation: blink 1s steps(2, jump-none) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.ladder {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 30px 12px 16px;
+}
+
+.max {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 0;
+  border-left: 1px dashed var(--brand);
+  margin-left: calc(64px + 12px);
+}
+
+.max span {
+  position: absolute;
+  top: -2px;
+  left: 6px;
+  white-space: nowrap;
+  color: var(--brand);
+  font-size: 10px;
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: 64px 1fr 72px;
+  align-items: center;
+  gap: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar > span:first-child {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.bar > span:last-child {
+  text-align: right;
+}
+
+.bar div {
+  height: 12px;
+}
+
+.bar div i {
+  display: block;
+  height: 100%;
+  background: var(--paper-2);
+  border: 1px solid var(--ink-2);
+}
+
+.bar[data-who="Offered"] div i {
+  background: var(--ink);
+}
+
+.bar[data-who="Final"] div i {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.bar[data-who="Final"] > span:last-child {
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.slip {
+  margin: 0;
+  padding: 4px 12px 12px;
+}
+
+.slip div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 14px;
+}
+
+.slip dt {
+  font-size: 10.5px;
+  color: var(--muted);
+  align-self: center;
+}
+
+.slip dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 500;
+}
+
+.stamp {
+  position: absolute;
+  right: 18px;
+  bottom: -16px;
+  padding: 8px 14px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 13px;
+  transform: rotate(-4deg);
+}
+
+.track {
+  list-style: none;
+  margin: 0;
+  padding: 14px 14px 14px 34px;
+  display: grid;
+  gap: 18px;
+  position: relative;
+}
+
+.track::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 22px;
+  bottom: 22px;
+  border-left: 1px dashed var(--ink-2);
+}
+
+.track li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.track li::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 5px;
+  width: 9px;
+  height: 9px;
+  background: var(--paper);
+  border: 1px solid var(--ink-2);
+}
+
+.track li[data-done] {
+  color: var(--ink);
+}
+
+.track li[data-done]::before {
+  background: var(--ink);
+}
+
+.track li[data-now] {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.track li[data-now]::before {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.track li span {
+  font-size: 11px;
+  align-self: center;
+}
+
+@media (max-width: 959px) {
+  .head,
+  .stage {
+    grid-template-columns: 1fr;
+  }
+
+  .desc {
+    justify-self: start;
+  }
+
+  .left {
+    padding: 18px 14px 0;
+  }
+
+  .barItem {
+    grid-template-columns: 34px 1fr;
+    gap: 4px 10px;
+  }
+
+  .barLine {
+    grid-column: 2;
+  }
+
+  .barDot {
+    display: none;
+  }
+
+  .frame {
+    min-height: 400px;
+    margin: 18px 14px 24px;
+  }
+}

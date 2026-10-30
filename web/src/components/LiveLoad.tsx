@@ -50,11 +50,10 @@ export default function LiveLoad() {
 
   return (
     <div className={styles.window} aria-label="Bhaada booking a truck, live example">
-      <div className={styles.chrome} aria-hidden>
-        <span />
-        <span />
-        <span />
-      </div>
+      <p className={`${styles.chrome} mono`} aria-hidden>
+        <span>Load 0417, live</span>
+        <span>Simulated owners</span>
+      </p>
       <h2 className={styles.title}>
         {DEMO_LOAD.from.split(",")[0]} to {DEMO_LOAD.to}
       </h2>

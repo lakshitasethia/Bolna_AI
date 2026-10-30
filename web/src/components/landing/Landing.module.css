@@ -1,0 +1,30 @@
+/* The drawing sheet: an inset frame with tick rulers down both edges. */
+.shell {
+  position: relative;
+  margin: var(--gutter);
+  border: 1px solid var(--line);
+  min-height: calc(100svh - var(--gutter) * 2);
+  overflow-x: clip;
+}
+
+.shell::before,
+.shell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--rail);
+  background: repeating-linear-gradient(180deg, var(--line) 0 1px, transparent 1px 6px) center / 5px 100% no-repeat;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.shell::before {
+  left: 0;
+  border-right: 1px solid var(--line-soft);
+}
+
+.shell::after {
+  right: 0;
+  border-left: 1px solid var(--line-soft);
+}

@@ -1,0 +1,133 @@
+.section {
+  margin: 0 var(--rail);
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+  min-height: 520px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px;
+  color: var(--muted);
+}
+
+.name h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(28px, 2.6vw, 40px);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.visual {
+  display: grid;
+  align-content: center;
+  padding: 28px clamp(16px, 3vw, 44px);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: -1px -1px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.side p {
+  margin: 0;
+  padding: 14px;
+  font-size: 14px;
+  color: var(--ink-2);
+  max-width: 40ch;
+}
+
+.link {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  text-decoration: none;
+  color: var(--ink);
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+.link:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.chat {
+  list-style: none;
+  margin: 0;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.chat li {
+  display: grid;
+  gap: 2px;
+  max-width: 88%;
+}
+
+.chat li span {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.chat li[data-who="owner"] {
+  justify-self: end;
+  text-align: right;
+  color: var(--ink-2);
+}
+
+.chat li[data-who="note"] {
+  max-width: none;
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .row {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .name {
+    gap: 24px;
+  }
+
+  .visual {
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+}

@@ -1,0 +1,187 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { Arrow } from "../Nav";
+import { IsoChats, IsoEmpty, IsoPhone, IsoRadar, TowerScene } from "./art";
+import { gsap, MOTION, SplitText } from "./motion";
+import styles from "./Problems.module.css";
+
+const LANGS = [
+  { text: "हिंदी", deva: true },
+  { text: "Hinglish" },
+  { text: "English" },
+  { text: "Any phone" },
+  { text: "No app" },
+];
+
+const PROBLEMS = [
+  {
+    tag: "Manual",
+    title: "Every truck is thirty calls",
+    body: "You ring owner after owner, ask the same five questions and write rates on a notepad.",
+    Icon: IsoPhone,
+  },
+  {
+    tag: "Scattered",
+    title: "Rates live in WhatsApp groups",
+    body: "Quotes arrive as voice notes and forwards, so you never see the whole market at once.",
+    Icon: IsoChats,
+  },
+  {
+    tag: "Blind",
+    title: "Nobody calls to check the truck",
+    body: "Once the truck leaves, you hear about delays only when the shipper calls you.",
+    Icon: IsoRadar,
+  },
+  {
+    tag: "Empty",
+    title: "Trucks come home empty",
+    body: "An empty truck in Jaipur and your load going back to Delhi never find each other.",
+    Icon: IsoEmpty,
+  },
+];
+
+export default function Problems() {
+  const root = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const mm = gsap.matchMedia();
+      mm.add(MOTION, () => {
+        const words = new SplitText("[data-scrub]", { type: "words" }).words;
+        gsap.fromTo(
+          words,
+          { color: "#b4b4b0" },
+          {
+            color: "#282828",
+            stagger: 0.1,
+            ease: "none",
+            scrollTrigger: { trigger: "[data-scrub]", start: "top 78%", end: "bottom 42%", scrub: true },
+          },
+        );
+        gsap.from("[data-tower] [data-draw]", {
+          drawSVG: "0%",
+          duration: 1.6,
+          stagger: 0.02,
+          ease: "power2.inOut",
+          scrollTrigger: { trigger: "[data-tower]", start: "top 75%" },
+        });
+        gsap.from("[data-tower] [data-tone]", {
+          opacity: 0,
+          duration: 1,
+          delay: 0.8,
+          scrollTrigger: { trigger: "[data-tower]", start: "top 75%" },
+        });
+
+        // Colour rises through the black-and-white print from the ground up as you scroll.
+        const read = root.current!.querySelector<HTMLElement>("[data-signal]")!;
+        const signal = { v: 0 };
+        gsap
+          .timeline({
+            defaults: { ease: "none" },
+            scrollTrigger: { trigger: "[data-tower]", start: "top 65%", end: "bottom 70%", scrub: 0.8 },
+          })
+          .fromTo("[data-colour]", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 1 }, 0)
+          .fromTo("[data-tscan]", { top: "100%", autoAlpha: 1 }, { top: "0%", duration: 1 }, 0)
+          .to(signal, { v: 100, duration: 1, onUpdate: () => void (read.textContent = `Signal ${Math.round(signal.v)}%`) }, 0)
+          .fromTo("[data-colour] [data-sun]", { scale: 0.86, svgOrigin: "262 196" }, { scale: 1, duration: 1 }, 0)
+          .to("[data-tscan]", { autoAlpha: 0, duration: 0.06 }, 0.97);
+        gsap.utils.toArray<HTMLElement>("[data-problem]").forEach((card, i) => {
+          const trigger = { trigger: card, start: "top 80%" };
+          gsap.from(card.querySelectorAll("svg path:not([stroke-dasharray])"), {
+            drawSVG: "0%",
+            duration: 1.2,
+            delay: i * 0.12,
+            ease: "power2.inOut",
+            scrollTrigger: trigger,
+          });
+          gsap.from(card.querySelectorAll("svg path[stroke-dasharray]"), {
+            opacity: 0,
+            duration: 0.8,
+            delay: 0.6 + i * 0.12,
+            scrollTrigger: trigger,
+          });
+        });
+      });
+    }, root);
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <section ref={root} id="statement" className={styles.section}>
+      <div className={styles.statement}>
+        <div className={styles.tower} data-tower>
+          <div className={styles.towerArt}>
+            <TowerScene id="tower-bw" />
+            <div className={styles.colour} data-colour aria-hidden>
+              <TowerScene id="tower-c" colour />
+            </div>
+            <div className={styles.tscan} data-tscan aria-hidden>
+              <span className="mono" data-signal>
+                Signal 100%
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className={styles.right}>
+          <div className={styles.copy}>
+            <p className={styles.scrub} data-scrub>
+              Thirty phone calls for one truck shouldn&apos;t eat your morning. Bhaada makes the calls, bargains in Hindi
+              and hands you a booked truck, so you can get back to your shippers.
+            </p>
+            <a href="#route" className={`${styles.btn} mono`}>
+              <span>See how</span>
+              <i>
+                <Arrow />
+              </i>
+            </a>
+          </div>
+          <div className={styles.langs}>
+            <p className={`${styles.langHead} mono`}>Speaks the way owners speak</p>
+            <ul>
+              {LANGS.map((l) => (
+                <li key={l.text} lang={l.deva ? "hi" : undefined} data-deva={l.deva}>
+                  {l.text}
+                </li>
+              ))}
+            </ul>
+            <p className={`${styles.langFoot} mono`}>
+              Works on the phone the owner already has. No app, no smartphone, no sign-up.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.head}>
+        <div>
+          <p className={`${styles.label} mono`} data-scramble>
+            Problems
+          </p>
+          <h2 className={styles.h2} data-lines>
+            Your phone is your dispatch software, and it can&apos;t dial itself
+          </h2>
+        </div>
+        <p className={styles.desc}>
+          Trucks are found the way they were twenty years ago: by phone, by WhatsApp and through brokers you know. India
+          has about 15 lakh truck owners and most run one to three trucks, so every load means calling around.
+        </p>
+      </div>
+
+      <ol className={styles.cards}>
+        {PROBLEMS.map(({ tag, title, body, Icon }, i) => (
+          <li key={tag} className={styles.card} data-problem>
+            <div className={`${styles.cardTop} mono`}>
+              <span>{tag}</span>
+              <span>[0{i + 1}]</span>
+            </div>
+            <div className={styles.icon}>
+              <Icon />
+            </div>
+            <h3 className={styles.cardTitle}>{title}</h3>
+            <p className={styles.cardBody}>{body}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}

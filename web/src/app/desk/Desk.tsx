@@ -88,18 +88,14 @@ export default function Desk() {
     <>
       <Nav cta={false} />
       <main className={styles.page}>
+        <header className={styles.head}>
+          <p className="mono">Booking desk</p>
+          <h1 className={styles.title}>Post a load. Bhaada makes the calls.</h1>
+        </header>
         <div className={styles.window}>
-          <div className={styles.chrome} aria-hidden>
-            <span />
-            <span />
-            <span />
-          </div>
-
           <form className={styles.form} onSubmit={startCalls}>
-            <h1 className={styles.title}>New load</h1>
-
             <fieldset className={styles.group}>
-              <legend>Route</legend>
+              <legend className="mono">[01] Route</legend>
               <div className={styles.row}>
                 <label>
                   Pickup
@@ -133,7 +129,7 @@ export default function Desk() {
             </fieldset>
 
             <fieldset className={styles.group}>
-              <legend>Budget</legend>
+              <legend className="mono">[02] Budget</legend>
               <div className={styles.row}>
                 <label>
                   Open at (₹)
@@ -160,7 +156,7 @@ export default function Desk() {
             </fieldset>
 
             <fieldset className={styles.group}>
-              <legend>Owners to call</legend>
+              <legend className="mono">[03] Owners to call</legend>
               <ul className={styles.contacts}>
                 {contacts.map((c) => (
                   <li key={c.id}>
@@ -200,7 +196,7 @@ export default function Desk() {
             </fieldset>
 
             <fieldset className={styles.group}>
-              <legend>Calls</legend>
+              <legend className="mono">[04] Calls</legend>
               <div className={styles.modes} role="radiogroup" aria-label="Call mode">
                 <label data-checked={mode === "sim"}>
                   <input type="radio" name="mode" checked={mode === "sim"} onChange={() => setMode("sim")} />

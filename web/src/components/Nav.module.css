@@ -1,82 +1,95 @@
 .bar {
-  position: sticky;
-  top: 8px;
-  z-index: 20;
-  max-width: 1148px;
-  margin: 8px auto 0;
-  padding: 8px 8px 8px 18px;
+  position: fixed;
+  z-index: 50;
+  top: var(--gutter);
+  left: var(--gutter);
+  right: var(--gutter);
+  height: var(--nav-h);
   display: flex;
-  align-items: center;
-  gap: 24px;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
+  align-items: stretch;
+  justify-content: space-between;
+  background-color: var(--paper);
+  background-image: var(--noise);
+  border: 1px solid var(--line);
+  transition: transform 600ms var(--ease-out);
+}
+
+.bar[data-hidden="true"] {
+  transform: translateY(calc(-100% - var(--gutter) - 2px));
 }
 
 .wordmark {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
+  padding: 0 22px;
   text-decoration: none;
-}
-
-.latin {
-  font-family: var(--font-serif);
-  font-size: 22px;
-  letter-spacing: -0.02em;
-}
-
-.deva {
-  font-family: var(--font-deva);
-  font-size: 17px;
-  color: var(--truck-red);
+  font-weight: 600;
+  font-size: 21px;
+  letter-spacing: -0.04em;
 }
 
 .links {
   display: flex;
-  gap: 22px;
-  margin: 0 auto;
-  font-size: 14px;
+  align-items: stretch;
 }
 
-.links a {
+.cell {
+  position: relative;
+  width: clamp(120px, 9.6vw, 148px);
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-left: 1px solid var(--line);
   text-decoration: none;
-  color: var(--ink);
+  color: var(--ink-2);
+  transition: background-color 300ms ease, color 300ms ease;
 }
 
-.links a:hover {
-  text-decoration: underline;
-  text-underline-offset: 4px;
+/* The little corner tick from a drawing sheet */
+.cell::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  opacity: 0.6;
+}
+
+.cell:hover {
+  background-color: var(--ink);
+  color: var(--paper);
 }
 
 .cta {
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: var(--olive);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
+  color: var(--brand);
+}
+
+.cta svg {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+}
+
+.cta::after {
+  display: none;
 }
 
 .cta:hover {
-  background: var(--olive-ink);
+  background-color: var(--brand);
+  color: #fff;
 }
 
-@media (max-width: 640px) {
-  .bar {
-    margin: 8px 16px 0;
-    gap: 12px;
-  }
-
-  .links {
+@media (max-width: 900px) {
+  .cell:not(.cta) {
     display: none;
   }
 
-  .cta {
-    margin-left: auto;
+  .wordmark {
+    padding: 0 14px;
   }
 }

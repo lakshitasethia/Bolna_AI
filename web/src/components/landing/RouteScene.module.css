@@ -1,0 +1,295 @@
+.section {
+  position: relative;
+  margin: 0 var(--rail);
+  border-top: 1px solid var(--line);
+}
+
+/* Default layout: stacked, fully drawn. Used on small screens and with reduced motion. */
+.pin {
+  position: relative;
+  display: grid;
+  gap: 24px;
+  padding: 40px 14px 48px;
+}
+
+.pin > :global(.plus) {
+  display: none;
+}
+
+.headA {
+  display: none;
+}
+
+.headB {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 56px);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.map {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  aspect-ratio: 1000 / 720;
+}
+
+.map svg {
+  width: 100%;
+  height: 100%;
+}
+
+.introBox {
+  max-width: 420px;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+}
+
+.introHead {
+  margin: 0;
+  padding: 6px 10px;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.introSteps {
+  display: grid;
+  gap: 10px;
+  padding: 12px 10px 6px;
+}
+
+.introSteps p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.introFoot {
+  margin: 0;
+  padding: 4px 10px 10px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.panel {
+  max-width: 520px;
+}
+
+.panelLabel {
+  margin: 0 0 18px;
+  color: var(--muted);
+}
+
+.panelTitle {
+  margin: 0 0 16px;
+  font-size: clamp(30px, 3vw, 46px);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+  font-weight: 600;
+  text-transform: uppercase;
+  max-width: 11em;
+}
+
+.panelBody {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--ink-2);
+  max-width: 46ch;
+}
+
+.features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.features li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.features i {
+  font-style: normal;
+  color: var(--muted);
+}
+
+/* Owner hotspots on the map */
+.owner {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.hit {
+  position: absolute;
+  left: -18px;
+  top: -18px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.card {
+  position: absolute;
+  top: -10px;
+  left: 24px;
+  width: 240px;
+  display: grid;
+  gap: 2px;
+  padding: 0 10px 10px 0;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink-2);
+  pointer-events: none;
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  transition:
+    opacity 250ms ease,
+    clip-path 500ms var(--ease-out);
+  z-index: 2;
+}
+
+.owner[data-side="l"] .card {
+  left: auto;
+  right: 24px;
+}
+
+.owner[data-open="true"] .card {
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+}
+
+.card strong,
+.card > span:last-child {
+  padding-left: 10px;
+}
+
+.card strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.code {
+  justify-self: start;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.code[data-booked="true"] {
+  background: var(--brand);
+  color: #fff;
+}
+
+/* Desktop: one pinned screen, choreographed by GSAP */
+.section[data-pinned="true"] .pin {
+  display: block;
+  height: calc(100svh - var(--gutter) * 2);
+  padding: 0;
+  overflow: hidden;
+}
+
+.section[data-pinned="true"] .pin > :global(.plus) {
+  display: block;
+}
+
+.pin > [data-corner="tl"] {
+  top: 8px;
+  left: 8px;
+}
+
+.pin > [data-corner="tr"] {
+  top: 8px;
+  right: 8px;
+}
+
+.pin > [data-corner="bl"] {
+  bottom: 8px;
+  left: 8px;
+}
+
+.pin > [data-corner="br"] {
+  bottom: 8px;
+  right: 8px;
+}
+
+.section[data-pinned="true"] .headA,
+.section[data-pinned="true"] .headB {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-size: clamp(40px, 4.2vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 600;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.section[data-pinned="true"] .headA {
+  display: block;
+}
+
+.dot {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background: var(--brand);
+}
+
+.section[data-pinned="true"] .map {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: auto;
+  height: 78%;
+  max-width: none;
+}
+
+.section[data-pinned="true"] .introBox {
+  position: absolute;
+  left: 18px;
+  bottom: 22px;
+  width: 300px;
+}
+
+.section[data-pinned="true"] .introSteps {
+  display: grid;
+  grid-template-areas: "s";
+  min-height: 84px;
+}
+
+.section[data-pinned="true"] .introSteps p {
+  grid-area: s;
+}
+
+.section[data-pinned="true"] .panel {
+  position: absolute;
+  top: 50%;
+  right: clamp(24px, 4vw, 64px);
+  width: min(34%, 500px);
+}
