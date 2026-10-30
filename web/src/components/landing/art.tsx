@@ -514,7 +514,7 @@ const DASH = "0.93 2.8 9.35 2.8";
 
 function IsoFrame({ children }: { children: React.ReactNode }) {
   return (
-    <svg viewBox="18 8 204 184" aria-hidden fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="18 8 204 184" aria-hidden fill="none" stroke="currentColor" strokeWidth=".8" strokeLinecap="round" strokeLinejoin="round">
       {children}
     </svg>
   );
@@ -602,8 +602,8 @@ export function LogoMark({ size = 30 }: { size?: number }) {
   const b = g.box(-9, -5, 0, 20, 10, 12);
   const ribs = [0, 1, 2, 3].map((i) => g.poly([[-6 + i * 4.5, 5, 2], [-6 + i * 4.5, 5, 10]], false)).join("");
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" aria-hidden>
-      <g transform="translate(0 10)">
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" overflow="visible" aria-hidden>
+      <g transform="translate(-0.9 12.5)">
         <path d={b.solid} />
         <path d={ribs} strokeWidth="1" />
       </g>

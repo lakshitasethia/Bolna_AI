@@ -258,9 +258,9 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(var(--line-soft) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
-  background-size: 64px 64px;
+    linear-gradient(rgb(40 40 40 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(40 40 40 / 0.045) 1px, transparent 1px);
+  background-size: 66px 66px;
   background-position: center;
   opacity: 0;
   transition: opacity 400ms ease;
@@ -301,8 +301,8 @@
 .corner {
   position: absolute;
   z-index: 1;
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   transform: scale(0);
   transition: transform 400ms ease;
 }
@@ -311,19 +311,42 @@
 .corner::after {
   content: "";
   position: absolute;
-  background: var(--ink);
+  background: var(--muted);
 }
 
 .corner::before {
-  left: 5.5px;
+  left: 5px;
   width: 1px;
-  height: 12px;
+  height: 11px;
 }
 
 .corner::after {
-  top: 5.5px;
-  width: 12px;
+  top: 5px;
+  width: 11px;
   height: 1px;
+}
+
+.cursor {
+  position: absolute;
+  z-index: 2;
+  top: -4px;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  background: var(--brand);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+@media (hover: hover) {
+  .icon {
+    cursor: none;
+  }
+
+  .icon:hover .cursor {
+    opacity: 1;
+  }
 }
 
 .corner[data-c^="t"] {

@@ -41,13 +41,24 @@ const PROBLEMS = [
   },
 ];
 
+// Heron swaps the cursor for a small orange square over each drawing.
+function follow(e: React.PointerEvent<HTMLElement>) {
+  const area = e.currentTarget;
+  const dot = area.querySelector<HTMLElement>("[data-cursor]")!;
+  const r = area.getBoundingClientRect();
+  dot.style.transform = `translate(${e.clientX - r.left}px, ${e.clientY - r.top}px)`;
+}
+
 // On hover the icon redraws line by line, then its dashed guides fade in and start to flow.
 function redraw(card: HTMLElement) {
   if (prefersReduced()) return;
   const solid = card.querySelectorAll("svg path:not([stroke-dasharray])");
   const dashed = card.querySelectorAll("svg path[stroke-dasharray]");
-  gsap.killTweensOf([solid, dashed]);
+  const filled = card.querySelectorAll("svg path[fill]:not([fill='none'])");
+  const drawn = 0.7 + solid.length * 0.09;
+  gsap.killTweensOf([solid, dashed, filled]);
   gsap.fromTo(solid, { drawSVG: "0%" }, { drawSVG: "100%", duration: 0.7, stagger: 0.09, ease: "power2.inOut" });
+  gsap.fromTo(filled, { fillOpacity: 0 }, { fillOpacity: 1, duration: 0.3, delay: drawn - 0.3 });
   gsap.fromTo(dashed, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power1.in", delay: 0.25 + solid.length * 0.09 });
 }
 
@@ -83,7 +94,7 @@ export default function Problems() {
           scrollTrigger: { trigger: "[data-tower]", start: "top 75%" },
         });
 
-        // Colour rises through the black-and-white print from the ground up as you scroll.
+        // Colour pours down through the black-and-white print from the top as you scroll.
         const read = root.current!.querySelector<HTMLElement>("[data-signal]")!;
         const signal = { v: 0 };
         gsap
@@ -91,8 +102,8 @@ export default function Problems() {
             defaults: { ease: "none" },
             scrollTrigger: { trigger: "[data-tower]", start: "top 65%", end: "bottom 70%", scrub: 0.8 },
           })
-          .fromTo("[data-colour]", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 1 }, 0)
-          .fromTo("[data-tscan]", { top: "100%", autoAlpha: 1 }, { top: "0%", duration: 1 }, 0)
+          .fromTo("[data-colour]", { clipPath: "inset(0% 0% 100% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 1 }, 0)
+          .fromTo("[data-tscan]", { top: "0%", autoAlpha: 1 }, { top: "100%", duration: 1 }, 0)
           .to(signal, { v: 100, duration: 1, onUpdate: () => void (read.textContent = `Signal ${Math.round(signal.v)}%`) }, 0)
           .fromTo("[data-colour] [data-sun]", { scale: 0.86, svgOrigin: "262 196" }, { scale: 1, duration: 1 }, 0)
           .to("[data-tscan]", { autoAlpha: 0, duration: 0.06 }, 0.97);
@@ -169,7 +180,8 @@ export default function Problems() {
               <span className={styles.tag}>{tag}</span>
               <span>[0{i + 1}]</span>
             </div>
-            <div className={styles.icon}>
+            <div className={styles.icon} onPointerMove={follow}>
+              <i className={styles.cursor} data-cursor aria-hidden />
               <i className={styles.corner} data-c="tl" />
               <i className={styles.corner} data-c="tr" />
               <i className={styles.corner} data-c="bl" />
