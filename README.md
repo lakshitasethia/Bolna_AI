@@ -6,8 +6,9 @@
 
 | | |
 |---|---|
-| **Live site** | https://bolna-ai.onrender.com |
-| **Booking desk** | https://bolna-ai.onrender.com/desk |
+| **Live site** | https://bhaada.vercel.app |
+| **Booking desk** | https://bhaada.vercel.app/desk |
+| **API server** | https://bolna-ai.onrender.com (Vercel forwards `/api/*` here) |
 | **Project status and handoff** | [HANDOFF.md](HANDOFF.md): what is deployed, what has been tested, and what is left |
 | **Problem research** | [research.md](research.md) |
 

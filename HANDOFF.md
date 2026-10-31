@@ -22,7 +22,7 @@ The project has been built on free tiers only.
 | Source | https://github.com/lakshitasethia/Bolna_AI, `main` | Public repo | |
 | Chatterbox voice | Google Colab | **Not running** | The voices registered in Bolna point at dead tunnels. Don't select them |
 | Telegram alerts | | **Not set up** | The code is there, but the bot token and chat id are empty |
-| Vercel | | **Not used** | Serverless instances wouldn't share the in-memory store |
+| Public site | Vercel, https://bhaada.vercel.app | Live, pages only | Project is in the `lexis-projects-2967fc9f` team and deploys from `main`. `next.config.ts` sends all `/api/*` to Render, because Vercel instances don't share the in-memory store. No env vars are needed there |
 
 ### Render settings
 

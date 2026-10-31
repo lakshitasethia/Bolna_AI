@@ -66,6 +66,9 @@ interface Health {
 
 const newSession = () => `desk_${Math.random().toString(36).slice(2, 10)}`;
 
+// How long the desk waits for a sleeping server. It has taken up to 46 seconds.
+const WAKE_MS = 90_000;
+
 export default function Desk() {
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [contacts, setContacts] = useState<Contact[]>(DEMO_CONTACTS);
@@ -89,20 +92,34 @@ export default function Desk() {
   const sdk = useRef<typeof import("@bolna/web-call") | null>(null);
 
   useEffect(() => {
-    fetch("/api/config")
-      .then((r) => r.json())
-      .then((c: { live: boolean; intake: boolean; phoneIn?: string[] }) => {
-        setConfig({ ...c, phoneIn: c.phoneIn ?? [] });
-        // Load the SDK early: start() has to run inside the click, with no await before it.
-        if (c.intake) import("@bolna/web-call").then((m) => (sdk.current = m));
-      })
-      .catch(() => undefined);
-    fetch("/api/health")
-      .then((r) => r.json())
-      .then(setHealth)
-      .catch(() => setHealth({ caller: false, intake: false, linked: false }));
+    let left = true;
+    async function connect() {
+      // The server sleeps when idle and can take a minute to wake, so keep asking.
+      const until = Date.now() + WAKE_MS;
+      let c: { live: boolean; intake: boolean; phoneIn?: string[] } | null = null;
+      while (left && !c && Date.now() < until) {
+        c = await fetch("/api/config")
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+        if (!c) await new Promise((done) => setTimeout(done, 3000));
+      }
+      if (!left) return;
+      if (!c) {
+        setHealth({ caller: false, intake: false, linked: false });
+        return setError("The server isn't answering. Refresh in a minute to try again.");
+      }
+      setConfig({ ...c, phoneIn: c.phoneIn ?? [] });
+      // Load the SDK early: start() has to run inside the click, with no await before it.
+      if (c.intake) import("@bolna/web-call").then((m) => (sdk.current = m));
+      fetch("/api/health")
+        .then((r) => r.json())
+        .then(setHealth)
+        .catch(() => setHealth({ caller: false, intake: false, linked: false }));
+    }
+    void connect();
     const pending = timers.current;
     return () => {
+      left = false;
       pending.forEach(clearTimeout);
       if (poll.current) clearInterval(poll.current);
       if (watch.current) clearInterval(watch.current);
@@ -148,8 +165,16 @@ export default function Desk() {
     if (poll.current) clearInterval(poll.current);
     poll.current = setInterval(async () => {
       const r = await fetch(`/api/loads/${id}`).catch(() => null);
+      // Loads are held in memory, so a server restart loses them for good.
+      if (r?.status === 404) {
+        if (poll.current) clearInterval(poll.current);
+        setLoad(null);
+        setError("The server restarted and lost this load. Start it again.");
+        return;
+      }
       if (!r?.ok) return;
-      const next: Load = await r.json();
+      const next: Load | null = await r.json().catch(() => null);
+      if (!next) return;
       setLoad(next);
       // A phone-in transcript can arrive from Bolna after the load settles.
       if (next.status !== "calling" && (next.source !== "phone" || next.intake) && poll.current) clearInterval(poll.current);
@@ -163,7 +188,8 @@ export default function Desk() {
       body: JSON.stringify(body),
     }).catch(() => null);
     if (!res) return setError("Couldn't reach the server. Check that it's running and try again.");
-    const next = await res.json();
+    const next = await res.json().catch(() => null);
+    if (!next) return setError("The server didn't answer properly. It may be waking up, so try again in a minute.");
     if (!res.ok) return setError(next.error ?? "The load couldn't be posted.");
     setLoad(next);
     follow(next.id);
@@ -285,7 +311,7 @@ export default function Desk() {
               <li data-ok={ready}>{ready ? "Ready for real calls" : "Simulated loads only"}</li>
             </>
           ) : (
-            <li>Checking agents…</li>
+            <li>Connecting to the server, this can take a minute…</li>
           )}
         </ul>
         <div className={styles.window}>
@@ -307,7 +333,7 @@ export default function Desk() {
                     Call Bhaada
                   </button>
                 )}
-                <button type="button" className={styles.add} onClick={sampleCall} disabled={onLine || calling}>
+                <button type="button" className={styles.add} onClick={sampleCall} disabled={!health || onLine || calling}>
                   Play a sample call
                 </button>
                 {(load || line) && (
@@ -500,7 +526,7 @@ export default function Desk() {
                 </p>
               )}
 
-              <button className={styles.start} type="submit" disabled={starting || calling}>
+              <button className={styles.start} type="submit" disabled={!health || starting || calling}>
                 {calling ? "Agents on the phones…" : starting ? "Posting…" : `Start ${owners.length} agents`}
               </button>
             </form>
