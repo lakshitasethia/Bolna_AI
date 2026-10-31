@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { decide } from "../src/lib/negotiate.ts";
+import { decide, plausibleQuote } from "../src/lib/negotiate.ts";
 import { parseRupees, toE164 } from "../src/lib/bolna.ts";
 import { spell } from "../src/lib/simulate.ts";
 
@@ -81,4 +81,23 @@ test("formats Indian numbers for dialling", () => {
 
 test("spells vehicle numbers for read-back", () => {
   assert.equal(spell("RJ14 GB 4521"), "R J, 1 4, G B, 4 5 2 1");
+});
+
+test("an opening 'final' still gets one counter, then the rule applies", () => {
+  const none = { offers: [], quotes: [] };
+  assert.deepEqual(decide(terms, none, 38000, true), { action: "counter", offer: 35000 });
+  assert.deepEqual(decide(terms, none, 39000, true), { action: "counter", offer: 35000 });
+  const countered = { offers: [35000], quotes: [38000] };
+  assert.deepEqual(decide(terms, countered, 38000, true), { action: "accept", rate: 38000 });
+  assert.deepEqual(decide(terms, { offers: [35000], quotes: [39000] }, 39000, true), { action: "decline", lastOffer: 35000 });
+});
+
+test("a misheard amount isn't a price", () => {
+  for (const q of [38, 380, 3800, 3800000]) assert.equal(plausibleQuote(q, 38000), false, String(q));
+  for (const q of [12000, 33000, 38000, 45000, 90000]) assert.equal(plausibleQuote(q, 38000), true, String(q));
+});
+
+test("parses lakh amounts", () => {
+  assert.equal(parseRupees("1 lakh"), 100000);
+  assert.equal(parseRupees("1.2 lakh"), 120000);
 });

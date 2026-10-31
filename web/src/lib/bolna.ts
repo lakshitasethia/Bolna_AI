@@ -69,8 +69,9 @@ export async function readParams(req: Request): Promise<Record<string, string>> 
 export function parseRupees(raw: string | undefined): number {
   if (!raw) return NaN;
   const s = raw.toLowerCase().replace(/[₹,\s]/g, "");
-  const m = s.match(/^(\d+(?:\.\d+)?)(k|hazaar|hazar|thousand)?$/);
+  const m = s.match(/^(\d+(?:\.\d+)?)(k|hazaar|hazar|thousand|lakh|lac)?$/);
   if (!m) return NaN;
   const n = Number(m[1]);
+  if (m[2] === "lakh" || m[2] === "lac") return Math.round(n * 100000);
   return Math.round(m[2] ? n * 1000 : n);
 }

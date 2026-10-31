@@ -4,7 +4,7 @@
 // budget the moment it happens.
 import { declineStatus, quoteGuard, recordLock, recordOutbid, termsFor } from "@/lib/board.ts";
 import { parseRupees, readParams, toolAuthorized } from "@/lib/bolna.ts";
-import { decide, sayFor } from "@/lib/negotiate.ts";
+import { decide, plausibleQuote, sayFor } from "@/lib/negotiate.ts";
 import { findCall } from "@/lib/store.ts";
 
 export async function POST(req: Request) {
@@ -16,8 +16,8 @@ export async function POST(req: Request) {
 
   const { load, call } = found;
   const quote = parseRupees(p.quote);
-  if (!(quote > 0)) {
-    return Response.json({ action: "ask_again", say: "Maaf kijiye, rate dobara bataiye? Kitne rupaye?" });
+  if (!plausibleQuote(quote, load.ceiling)) {
+    return Response.json({ action: "ask_again", say: "Aapka rate kya hai? Poora bataiye, kitne hazaar rupaye?" });
   }
 
   const guarded = quoteGuard(call, quote);

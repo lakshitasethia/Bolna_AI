@@ -16,7 +16,7 @@ test("an agreed rate can't be pushed up by a later quote", () => {
   assert.deepEqual(quoteGuard(call({ agreedRate: 30000 }), 35000), {
     action: "accept",
     rate: 30000,
-    say: "Theek hai Raju ji, ₹30,000 note kar liya. Gaadi number aur driver ka number bata dijiye.",
+    say: "Theek hai Raju ji, ₹30,000 note kar liya. Ab gaadi ka state aur RTO code bataiye, jaise M H 1 2.",
   });
 });
 

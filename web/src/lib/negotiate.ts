@@ -39,7 +39,8 @@ export function decide(terms: Terms, history: History, quote: number, isFinal = 
     quote <= ceiling ? { action: "accept", rate: quote } : { action: "decline", lastOffer: lastOffer ?? target };
 
   if (quote <= target) return { action: "accept", rate: quote };
-  if (isFinal || history.offers.length >= maxRounds) return take();
+  // "Final" only counts once we've made an offer, so an opening "final" still gets one counter.
+  if ((isFinal && lastOffer !== undefined) || history.offers.length >= maxRounds) return take();
 
   // Open at target, then meet the owner halfway, rounded down to the step.
   let offer = lastOffer === undefined ? target : roundDown(lastOffer + (quote - lastOffer) / 2, step);
@@ -54,6 +55,10 @@ export function decide(terms: Terms, history: History, quote: number, isFinal = 
   return { action: "counter", offer };
 }
 
+// Speech to text drops words, so "38 hazaar" can arrive as 38. An amount this far
+// from the budget is a mishearing, and accepting it would book a truck for ₹38.
+export const plausibleQuote = (quote: number, ceiling: number) => quote >= ceiling / 4 && quote <= ceiling * 4;
+
 export const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 // A line the voice agent can say for each decision. The LLM may rephrase it.
@@ -62,7 +67,7 @@ export const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 export function sayFor(decision: Decision, ownerName: string, rival?: number): string {
   switch (decision.action) {
     case "accept":
-      return `Theek hai ${ownerName} ji, ${inr(decision.rate)} note kar liya. Gaadi number aur driver ka number bata dijiye.`;
+      return `Theek hai ${ownerName} ji, ${inr(decision.rate)} note kar liya. Ab gaadi ka state aur RTO code bataiye, jaise M H 1 2.`;
     case "counter":
       return rival
         ? `${ownerName} ji, ek gaadi ${inr(rival)} mein mil rahi hai. ${inr(decision.offer)} mein karoge toh load aapka.`
