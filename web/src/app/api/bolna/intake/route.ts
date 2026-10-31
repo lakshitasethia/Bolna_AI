@@ -7,7 +7,7 @@ import { dispatch } from "@/lib/dispatch.ts";
 import { createLoad, hasPhone } from "@/lib/loads.ts";
 import { STEP } from "@/lib/negotiate.ts";
 import { network } from "@/lib/network.ts";
-import { latestForSession, saveLoad } from "@/lib/store.ts";
+import { latestForSession, ownersForSession, saveLoad } from "@/lib/store.ts";
 
 // The agent can call the tool twice on one phone-in; the second call reuses the load.
 const REPEAT_WINDOW = 3 * 60_000;
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   // Open around 8% under the maximum unless the transporter named an opening rate.
   const asked = parseRupees(p.target_rate);
   const target = asked > 0 && asked <= ceiling ? asked : Math.round((ceiling * 0.92) / STEP) * STEP;
-  const contacts = network();
+  const contacts = network(ownersForSession(known(p.session_id)));
 
   const load = createLoad({
     transporter: known(p.transporter) ?? DEMO_LOAD.transporter,

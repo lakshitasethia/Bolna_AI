@@ -61,7 +61,9 @@ function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds, hints })
             llm_agent: {
               agent_type: "simple_llm_agent",
               agent_flow_type: "streaming",
-              llm_config: { provider: "openai", model: "gpt-5.4-mini", max_tokens: 200, temperature: 1 },
+              // Reasoning tokens count against max_tokens on GPT-5; at 200 the model could
+              // spend them all on a turn full of digits, say nothing, and the line went dead.
+              llm_config: { provider: "openai", model: "gpt-5.4-mini", max_tokens: 800, temperature: 1 },
             },
             synthesizer: synthesizer(),
             transcriber: {
@@ -71,8 +73,8 @@ function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds, hints })
               stream: true,
               encoding: "linear16",
               sampling_rate: 16000,
-              // Owners pause between the parts of a number; 250 ms cut them into fragments.
-              endpointing: 700,
+              // Owners pause between the parts of a number; shorter waits cut them into fragments.
+              endpointing: 1000,
               context: hints.context,
               keywords: hints.keywords,
             },
@@ -89,7 +91,7 @@ function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds, hints })
             hangup_after_LLMCall: true,
             call_cancellation_prompt:
               "End the call only if the assistant has given its final thanks after the outcome was decided, or the other person has said goodbye. Otherwise keep the call going.",
-            incremental_delay: 1200,
+            incremental_delay: 1500,
             check_if_user_online: true,
             check_user_online_message: "जी, आप सुन रहे हैं?",
             trigger_user_online_message_after: 10,
@@ -138,7 +140,7 @@ const caller = agentBody({
   hints: {
     context:
       "Hindi phone call with an Indian truck owner about a freight load. They name rates in rupees, read out a vehicle number like MH 12 AB 1234 letter by letter, and a ten digit mobile number digit by digit.",
-    keywords: `${TRUCK_WORDS}, MH, DL, HR, RJ, UP, GJ, KA, PB, MP, hazaar, lakh, driver, gaadi`,
+    keywords: `${TRUCK_WORDS}, MH, DL, HR, RJ, UP, GJ, KA, PB, MP, TN, AP, TS, KL, WB, BR, CG, OD, JH, UK, HP, JK, AS, GA, ek, do, teen, chaar, paanch, chhah, saat, aath, nau, shunya, hazaar, lakh, driver, gaadi`,
   },
 });
 const intake = agentBody({
@@ -147,7 +149,7 @@ const intake = agentBody({
   prompt: INTAKE_PROMPT,
   tools: intakeTools(host, token),
   webhook: `${host}/api/bolna/webhook`,
-  maxSeconds: 180,
+  maxSeconds: 240,
   hints: {
     context:
       "Hindi phone call where a transporter posts a freight load: pickup and drop cities in India, a pickup time, a truck type and size, a weight in tons, and a maximum rate in rupees.",

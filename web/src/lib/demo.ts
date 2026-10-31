@@ -1,3 +1,4 @@
+import { STEP } from "./negotiate.ts";
 import type { Contact, Persona } from "./types.ts";
 
 export const DEMO_LOAD = {
@@ -74,3 +75,14 @@ export const DEMO_CONTACTS: Contact[] = [
     driverPhone: "97170 55620",
   }),
 ];
+
+const DEMO_IDS = new Set(DEMO_CONTACTS.map((c) => c.id));
+
+// The demo owners' rates are written for DEMO_LOAD. On any other budget they
+// bargain the same way at that scale, so the board still has a contest.
+export function fitToBudget(contact: Contact, ceiling: number): Contact {
+  const p = contact.persona;
+  if (!p?.available || !DEMO_IDS.has(contact.id) || ceiling === DEMO_LOAD.ceiling) return contact;
+  const fit = (n: number) => Math.max(STEP, Math.round((n * ceiling) / DEMO_LOAD.ceiling / STEP) * STEP);
+  return { ...contact, persona: { ...p, open: fit(p.open), floor: fit(p.floor), concede: fit(p.concede) } };
+}

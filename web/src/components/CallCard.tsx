@@ -1,3 +1,4 @@
+import { callStage } from "@/lib/loads.ts";
 import { inr } from "@/lib/negotiate.ts";
 import type { Call, CallStatus } from "@/lib/types.ts";
 import styles from "./CallCard.module.css";
@@ -55,6 +56,7 @@ function Ladder({ call }: { call: Call }) {
 
 export function CallCard({ call, lines = 3 }: { call: Call; lines?: number }) {
   const recent = call.transcript.slice(-lines);
+  const stage = callStage(call);
   return (
     <article className={styles.card} data-status={call.status}>
       <header className={styles.head}>
@@ -72,6 +74,8 @@ export function CallCard({ call, lines = 3 }: { call: Call; lines?: number }) {
       </header>
 
       <Ladder call={call} />
+
+      {stage && <p className={`${styles.stage} mono`}>{stage}</p>}
 
       {call.rival !== undefined && !["booked", "released"].includes(call.status) && (
         <p className={`${styles.rival} mono`}>Told the owner a truck is ready at {inr(call.rival)}</p>

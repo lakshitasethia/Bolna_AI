@@ -16,12 +16,12 @@ export async function POST(req: Request) {
 
   const { load, call } = found;
   const quote = parseRupees(p.quote);
-  if (!plausibleQuote(quote, load.ceiling)) {
+  const plausible = plausibleQuote(quote, load.ceiling);
+  const guarded = quoteGuard(call, plausible ? quote : NaN);
+  if (guarded) return Response.json(guarded);
+  if (!plausible) {
     return Response.json({ action: "ask_again", say: "Aapka rate kya hai? Poora bataiye, kitne hazaar rupaye?" });
   }
-
-  const guarded = quoteGuard(call, quote);
-  if (guarded) return Response.json(guarded);
 
   const isFinal = /^(true|yes|1|haan)$/i.test(p.is_final ?? "");
   const terms = termsFor(load, call);

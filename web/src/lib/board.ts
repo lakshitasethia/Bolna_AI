@@ -1,7 +1,7 @@
 // The agents working one load share a board. When an owner agrees to a rate,
 // every other agent on the load can only take a rate below it, and may tell
 // its owner that a truck is already available at that price.
-import { inr, sayFor, STEP, type Terms } from "./negotiate.ts";
+import { inr, STEP, type Terms } from "./negotiate.ts";
 import { isDone } from "./loads.ts";
 import type { Call, CallStatus, Load } from "./types.ts";
 
@@ -35,11 +35,13 @@ export function termsFor(load: Load, call: Call): BoardTerms {
 
 // The reply to a quote that mustn't change anything: a finished call stays
 // finished, and an owner who has agreed a rate can't push it up afterwards.
+// Pass NaN for an implausible quote: once a rate is agreed, stray digits are a
+// vehicle or driver number, so the agent carries on instead of starting over.
 export function quoteGuard(call: Call, quote: number) {
   if (isDone(call)) return { ok: true, say: "Dhanyavaad!" };
-  if (call.agreedRate !== undefined && quote >= call.agreedRate) {
-    const decision = { action: "accept" as const, rate: call.agreedRate };
-    return { ...decision, say: sayFor(decision, first(call)) };
+  if (call.agreedRate !== undefined && !(quote < call.agreedRate)) {
+    const rate = call.agreedRate;
+    return { action: "continue" as const, rate, say: `Rate ${inr(rate)} hi rahega. Jo number baaki hai, woh bataiye.` };
   }
 }
 

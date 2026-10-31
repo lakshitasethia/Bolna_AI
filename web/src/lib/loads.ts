@@ -1,3 +1,4 @@
+import { fitToBudget } from "./demo.ts";
 import { inr } from "./negotiate.ts";
 import type { Booking, Call, Contact, Load, LoadInput } from "./types.ts";
 import { TERMINAL } from "./types.ts";
@@ -26,7 +27,9 @@ export function createLoad(input: LoadInput, now = Date.now()): Load {
     intake: input.intake,
     status: "calling",
     // On a live load, owners with a phone number get a real call; the rest are simulated.
-    calls: input.contacts.map((contact, i) => newCall(contact, i, input.mode === "live" && hasPhone(contact))),
+    calls: input.contacts.map((contact, i) =>
+      newCall(fitToBudget(contact, input.ceiling), i, input.mode === "live" && hasPhone(contact)),
+    ),
     board: [],
   };
 }
@@ -46,6 +49,29 @@ function newCall(contact: Contact, i: number, live: boolean): Call {
 
 export const isDone = (call: Call) => TERMINAL.includes(call.status);
 
+// A call that ended with no reported outcome. An agreed rate still stands, so
+// the truck can be booked, and a person confirms the numbers we never got.
+export function closeUnreported(call: Call, now: number) {
+  call.status = call.agreedRate === undefined ? "call_later" : "agreed";
+  if (call.agreedRate !== undefined && !(call.vehicle && call.driverPhone)) call.detailsToCheck = true;
+  call.endedAt = now;
+}
+
+// Bolna only sends a transcript when a call ends, so a real call shows how far
+// it has got from what the tools have recorded.
+export function callStage(call: Call): string | undefined {
+  if (!call.live || call.status !== "talking") return undefined;
+  if (call.agreedRate !== undefined) return `Rate agreed at ${inr(call.agreedRate)}, collecting truck and driver numbers`;
+  if (call.offers.length || call.quotes.length) return "Bargaining on the rate";
+  return "Checking the truck is free";
+}
+
+// Budget is only the reason when an owner's price was actually refused.
+export const noTruckReason = (load: Load) =>
+  load.calls.some((c) => c.status === "too_expensive" || c.status === "outbid")
+    ? "No truck within budget"
+    : "No owner confirmed a truck";
+
 // Once every call has ended, book the cheapest truck that agreed and
 // release the rest. Returns true the moment a load gets settled.
 export function settle(load: Load, now = Date.now()): boolean {
@@ -57,7 +83,7 @@ export function settle(load: Load, now = Date.now()): boolean {
 
   if (agreed.length === 0) {
     load.status = "no_truck";
-    load.board.push({ at: now, agent: "Desk", kind: "no_truck", text: "No truck within budget" });
+    load.board.push({ at: now, agent: "Desk", kind: "no_truck", text: noTruckReason(load) });
     return true;
   }
 

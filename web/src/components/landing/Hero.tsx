@@ -27,7 +27,7 @@ const LOG = [
   "010 Send confirmation",
 ];
 
-const TAGS = ["Fewer calls", "Lower bhaada", "No app for owners", "Hindi and Hinglish", "Any phone"];
+const TAGS = ["Fewer calls", "Lower bhaada", "No app for owners", "Calls in Hindi", "Any phone"];
 
 type Box = { x: number; y: number; w: number; h: number };
 

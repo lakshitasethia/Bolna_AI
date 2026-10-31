@@ -428,6 +428,122 @@
   color: var(--paper);
 }
 
+.ready {
+  position: relative;
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+}
+
+.ready li {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+}
+
+.ready li[data-ok="true"] {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.ready li[data-ok="false"] {
+  border-color: var(--brand-ink);
+  color: var(--brand-ink);
+}
+
+.ready li[data-ok="false"]::before {
+  content: "✕ ";
+}
+
+.ready li[data-ok="true"]::before {
+  content: "✓ ";
+}
+
+.group input[data-heard="true"]:not([type="radio"]) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  transition:
+    border-color 200ms ease,
+    background 400ms ease;
+}
+
+.heardCount,
+.callCount {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--brand-ink);
+}
+
+.heardCount {
+  padding: 6px 10px 0;
+}
+
+.phone {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.phone input:not([type="radio"]) {
+  height: 100%;
+}
+
+.liveTag {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  padding: 1px 4px;
+  background: var(--brand);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #fff;
+  pointer-events: none;
+}
+
+.summary {
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.summary div {
+  min-width: 0;
+  padding-top: 6px;
+  border-top: 1px solid rgb(255 255 255 / 45%);
+}
+
+.summary dt {
+  font-size: 9.5px;
+  opacity: 0.85;
+}
+
+.summary dd {
+  margin: 2px 0 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.flag {
+  margin: 8px 0 0;
+  padding: 6px 8px;
+  background: #fff;
+  font-size: 11px;
+  color: var(--brand-ink);
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

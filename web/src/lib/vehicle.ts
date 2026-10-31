@@ -7,12 +7,11 @@ export function normalizeVehicle(raw: string | undefined): string | null {
   return m ? `${m[1]} ${m[2]} ${m[3]} ${m[4]}` : null;
 }
 
-// A ten digit Indian mobile number, with or without +91 or a leading 0.
+// A ten digit Indian mobile number, with or without 91, 0091 or a leading 0.
 // "+91 98290 41234" -> "9829041234"; anything else -> null.
 export function normalizeMobile(raw: string | undefined): string | null {
-  let d = (raw ?? "").replace(/\D/g, "");
-  if (d.length === 12 && d.startsWith("91")) d = d.slice(2);
-  if (d.length === 11 && d.startsWith("0")) d = d.slice(1);
+  let d = (raw ?? "").replace(/\D/g, "").replace(/^0+/, "");
+  if (/^91\d{10,11}$/.test(d)) d = d.slice(2).replace(/^0/, "");
   return /^[6-9]\d{9}$/.test(d) ? d : null;
 }
 
@@ -24,6 +23,14 @@ const ASK_AGAIN = {
 };
 
 type Detail = keyof typeof ASK_AGAIN;
+
+// Asks only for the piece that's missing, so an owner doesn't repeat what we heard.
+function vehicleQuestion(raw: string | undefined) {
+  const s = (raw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (/^[A-Z]{2}\d{1,2}[A-Z]{1,3}\d*$/.test(s)) return "Sirf aakhri chaar number bataiye, ek ek karke.";
+  if (/^[A-Z]{2}\d{1,2}$/.test(s)) return "Ab series ke akshar bataiye.";
+  return ASK_AGAIN.vehicle_number;
+}
 
 export type DetailCheck =
   | { retry: Detail; say: string }
@@ -40,7 +47,7 @@ export function checkDetails(retries: Partial<Record<Detail, number>>, rawVehicl
     const used = retries[field] ?? 0;
     if (used < MAX_DETAIL_RETRIES) {
       retries[field] = used + 1;
-      return { retry: field, say: ASK_AGAIN[field] };
+      return { retry: field, say: field === "vehicle_number" ? vehicleQuestion(rawVehicle) : ASK_AGAIN[field] };
     }
   }
   return {

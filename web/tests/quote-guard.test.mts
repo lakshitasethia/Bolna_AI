@@ -14,10 +14,15 @@ test("a finished call can't be reopened by a late quote", () => {
 
 test("an agreed rate can't be pushed up by a later quote", () => {
   assert.deepEqual(quoteGuard(call({ agreedRate: 30000 }), 35000), {
-    action: "accept",
+    action: "continue",
     rate: 30000,
-    say: "Theek hai Raju ji, ₹30,000 note kar liya. Ab gaadi ka state aur RTO code bataiye, jaise M H 1 2.",
+    say: "Rate ₹30,000 hi rahega. Jo number baaki hai, woh bataiye.",
   });
+});
+
+test("digits heard after a rate is agreed don't restart the call", () => {
+  assert.equal(quoteGuard(call({ agreedRate: 30000 }), NaN)?.action, "continue");
+  assert.equal(quoteGuard(call({}), NaN), undefined);
 });
 
 test("an owner can still come down from an agreed rate, and normal quotes pass through", () => {

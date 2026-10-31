@@ -1,4 +1,5 @@
 import type { Call, Load } from "./types.ts";
+import { normalizeMobile } from "./vehicle.ts";
 
 const API = "https://api.bolna.ai";
 
@@ -38,12 +39,23 @@ export async function placeCall(load: Load, call: Call) {
   return body.execution_id;
 }
 
+// Where Bolna sends this agent's calls, or null if the agent doesn't exist.
+export async function agentWebhook(id: string | undefined) {
+  if (!id) return null;
+  const res = await fetch(`${API}/v2/agent/${id}`, {
+    headers: { Authorization: `Bearer ${process.env.BOLNA_API_KEY}` },
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const agent = (await res.json().catch(() => null)) as { webhook_url?: string } | null;
+  return agent?.webhook_url ?? null;
+}
+
 export function toE164(phone: string) {
+  const mobile = normalizeMobile(phone);
+  if (mobile) return `+91${mobile}`;
   const digits = phone.replace(/\D/g, "");
-  if (phone.trim().startsWith("+")) return `+${digits}`;
-  if (digits.length === 10) return `+91${digits}`;
-  if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
-  return `+${digits}`;
+  return digits.length === 10 ? `+91${digits}` : `+${digits}`;
 }
 
 // Bolna custom functions send a bearer token we choose (BHAADA_TOOL_TOKEN).
@@ -65,13 +77,16 @@ export async function readParams(req: Request): Promise<Record<string, string>> 
   return params;
 }
 
-// "₹38,500" / "38500" / "38.5k" / "38 hazaar" -> 38500
+// "₹38,500" / "38500" / "38.5k" / "38 hazaar" / "38 हज़ार रुपये" -> 38500
 export function parseRupees(raw: string | undefined): number {
   if (!raw) return NaN;
-  const s = raw.toLowerCase().replace(/[₹,\s]/g, "");
-  const m = s.match(/^(\d+(?:\.\d+)?)(k|hazaar|hazar|thousand|lakh|lac)?$/);
+  const s = raw
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/[₹,\s।]|\/-|rs\.?|rupees?|rupaye|रुपये|रुपए|रुपया/g, "");
+  const m = s.match(/^(\d+(?:\.\d+)?)(k|hazaar|hazar|thousand|lakh|lac|हज़?ार|लाख)?$/);
   if (!m) return NaN;
   const n = Number(m[1]);
-  if (m[2] === "lakh" || m[2] === "lac") return Math.round(n * 100000);
+  if (m[2] === "lakh" || m[2] === "lac" || m[2] === "लाख") return Math.round(n * 100000);
   return Math.round(m[2] ? n * 1000 : n);
 }
