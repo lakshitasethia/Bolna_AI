@@ -1,6 +1,6 @@
 // Bolna agent webhook: call status updates and the final transcript.
 import { settleAndNotify } from "@/lib/finish.ts";
-import { isDone } from "@/lib/loads.ts";
+import { closeUnreported, isDone } from "@/lib/loads.ts";
 import { findCallByExecution, intakeSession, latestForSession } from "@/lib/store.ts";
 import type { Turn } from "@/lib/types.ts";
 
@@ -53,9 +53,8 @@ export async function POST(req: Request) {
         break;
       case "completed":
       case "call-disconnected":
-        // The agent hung up without reporting an outcome.
-        call.status = "call_later";
-        call.endedAt = now;
+        // The call ended without an outcome being reported.
+        closeUnreported(call, now);
         break;
     }
   }

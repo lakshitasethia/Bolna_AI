@@ -138,8 +138,11 @@ For real calls, copy `web/.env.local.example` to `web/.env.local` and follow [ag
 | `GET /api/loads?session=` | Desk | None | Find a load that was phoned in |
 | `GET /api/loads/:id` | Desk | None | Poll a load, which also advances simulated calls |
 | `GET /api/config` | Desk | None | Report whether live calls and phone-in are available |
+| `GET /api/health` | Desk | None | Check both agents exist and Bolna reaches this server |
 | `POST /api/bolna/session` | Desk | None | Start a browser call to the intake agent |
 | `POST /api/bolna/intake` | Bolna, `post_load` | Tool token | Create a load from a phone-in and **dial the real owners** |
+| `POST /api/bolna/draft` | Bolna, `save_details` | Tool token | Save what the transporter has said so far |
+| `GET /api/bolna/draft?session=` | Desk | None | Fill the form during a phone-in |
 | `POST /api/bolna/quote` | Bolna, `submit_quote` | Tool token | Return accept, counter, decline or ask again |
 | `POST /api/bolna/outcome` | Bolna, `report_outcome` | Tool token | Validate and record how a call ended |
 | `POST /api/bolna/webhook` | Bolna | None | Receive call status and transcripts |

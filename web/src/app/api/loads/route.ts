@@ -32,6 +32,8 @@ function validate(input: LoadInput | null): string | null {
   if (!input.contacts?.length) return "Add at least one truck owner to call.";
   if (input.mode === "live") {
     if (!bolnaConfigured()) return "Live calls need BOLNA_API_KEY and BOLNA_AGENT_ID on the server.";
+    const bad = input.contacts.find((c) => c.phone.trim() && !hasPhone(c));
+    if (bad) return `${bad.name || "An owner"} has a phone number that isn't valid: ${bad.phone}. Use 10 digits.`;
     if (!input.contacts.some(hasPhone)) return "Add a 10-digit phone number for at least one owner.";
     if (input.contacts.some((c) => !hasPhone(c) && !c.persona)) {
       return "Owners without a phone number are simulated, so they need a simulated persona.";

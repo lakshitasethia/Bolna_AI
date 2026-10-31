@@ -8,8 +8,6 @@ import styles from "./Problems.module.css";
 
 const LANGS = [
   { text: "हिंदी", deva: true },
-  { text: "Hinglish" },
-  { text: "English" },
   { text: "Any phone" },
   { text: "No app" },
 ];

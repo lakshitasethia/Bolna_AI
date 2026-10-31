@@ -149,6 +149,13 @@
   color: #fff;
 }
 
+.stage {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--brand-ink);
+}
+
 .ladderWho {
   font-family: var(--font-mono);
   font-size: 9.5px;

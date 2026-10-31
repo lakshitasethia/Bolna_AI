@@ -153,14 +153,13 @@ The site is public and has no login. This matters more than anything else on thi
 | The agent skipped the read-back of numbers and rate on the real call, though the prompt requires it | A misheard number wouldn't get caught by the owner |
 | When an owner gave a partial answer ("98"), the agent asked for the first five digits twice | Clunky, but it recovered |
 | Nothing times out a live call. If Bolna's final webhook never arrives, the load stays "calling" and never books | A load can hang forever |
-| The site lists Hindi, Hinglish and English, but the agents are Hindi-only | Copy doesn't match the product |
 
-### 4. Promised on the site but not built
+### 4. Ideas taken off the site
 
-- **Check calls:** calling the driver at pickup and en route, then updating the desk and shipper. The site shows a scripted example.
-- **Return loads:** an owner phones in about an empty truck and gets matched to a load. The site shows a scripted example.
+These two were on the landing page as scripted examples. They were never built, so they came off it. Build them before putting them back in `web/src/components/landing/Products.tsx`.
 
-Build these, or take them off the landing page (`web/src/components/landing/Products.tsx`) before a judge asks.
+- **Check calls:** calling the driver at pickup and en route, then updating the desk and shipper.
+- **Return loads:** an owner phones in about an empty truck and gets matched to a load.
 
 ### 5. Needed for a real product
 

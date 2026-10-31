@@ -19,6 +19,9 @@ test("accepts ten digit Indian mobiles, with or without a prefix", () => {
   assert.equal(normalizeMobile("98290 41234"), "9829041234");
   assert.equal(normalizeMobile("+91 98290-41234"), "9829041234");
   assert.equal(normalizeMobile("09829041234"), "9829041234");
+  assert.equal(normalizeMobile("0091 98290 41234"), "9829041234");
+  assert.equal(normalizeMobile("+91 09829041234"), "9829041234");
+  assert.equal(normalizeMobile("9182904123"), "9182904123");
 });
 
 test("rejects short, long or landline-style numbers", () => {
@@ -43,6 +46,17 @@ test("asks again twice per detail, then books and flags it for the desk", () => 
   assert.equal(checkDetails(retries, "MH-FAT", "4321").retry, "driver_phone");
   assert.equal(checkDetails(retries, "MH-FAT", "4321").retry, "driver_phone");
   assert.deepEqual(checkDetails(retries, "mh-fat", " 4321 "), { vehicle: "MH-FAT", driverPhone: "4321", toCheck: true });
+});
+
+test("a retry asks only for the piece of the vehicle number that's missing", () => {
+  const ask = (vehicle: string) => {
+    const check = checkDetails({}, vehicle, "9829041234");
+    return check.retry ? check.say : "";
+  };
+  assert.equal(ask("TN10B125"), "Sirf aakhri chaar number bataiye, ek ek karke.");
+  assert.equal(ask("MH12AB"), "Sirf aakhri chaar number bataiye, ek ek karke.");
+  assert.equal(ask("MH12"), "Ab series ke akshar bataiye.");
+  assert.match(ask("MH"), /tukdon/);
 });
 
 test("good details go straight through, unflagged", () => {

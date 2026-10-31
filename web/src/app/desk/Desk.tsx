@@ -7,11 +7,24 @@ import { CallCard } from "@/components/CallCard";
 import Nav from "@/components/Nav";
 import { DEMO_CONTACTS, DEMO_LOAD } from "@/lib/demo.ts";
 import { SAMPLE_INTAKE } from "@/lib/intake.ts";
+import { hasPhone, noTruckReason } from "@/lib/loads.ts";
 import { inr } from "@/lib/negotiate.ts";
 import type { Contact, Load, Turn } from "@/lib/types.ts";
 import styles from "./desk.module.css";
 
 type Form = typeof DEMO_LOAD;
+
+// The boxes start empty: the transporter's call or their typing fills them.
+const EMPTY_FORM: Form = {
+  transporter: DEMO_LOAD.transporter,
+  from: "",
+  to: "",
+  pickup: "",
+  truck: "",
+  weightTons: 0,
+  target: 0,
+  ceiling: 0,
+};
 
 // The transporter's side of a phone-in: a sample call played on the desk, or
 // a real web call to the Bolna intake agent.
@@ -42,12 +55,27 @@ function simPersona(form: Form, i: number): Contact["persona"] {
   };
 }
 
+// What the agent has to hear before it can post a load.
+const DETAILS: (keyof Form)[] = ["from", "to", "pickup", "truck", "weightTons", "ceiling"];
+
+interface Health {
+  caller: boolean;
+  intake: boolean;
+  linked: boolean;
+}
+
 const newSession = () => `desk_${Math.random().toString(36).slice(2, 10)}`;
 
 export default function Desk() {
-  const [form, setForm] = useState<Form>(DEMO_LOAD);
+  const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [contacts, setContacts] = useState<Contact[]>(DEMO_CONTACTS);
-  const [config, setConfig] = useState({ live: false, intake: false });
+  const [config, setConfig] = useState<{ live: boolean; intake: boolean; phoneIn: string[] }>({
+    live: false,
+    intake: false,
+    phoneIn: [],
+  });
+  const [health, setHealth] = useState<Health | null>(null);
+  const [heard, setHeard] = useState<(keyof Form)[]>([]);
   const [mode, setMode] = useState<"sim" | "live">("sim");
   const [load, setLoad] = useState<Load | null>(null);
   const [line, setLine] = useState<Line | null>(null);
@@ -63,12 +91,16 @@ export default function Desk() {
   useEffect(() => {
     fetch("/api/config")
       .then((r) => r.json())
-      .then((c: { live: boolean; intake: boolean }) => {
-        setConfig(c);
+      .then((c: { live: boolean; intake: boolean; phoneIn?: string[] }) => {
+        setConfig({ ...c, phoneIn: c.phoneIn ?? [] });
         // Load the SDK early: start() has to run inside the click, with no await before it.
         if (c.intake) import("@bolna/web-call").then((m) => (sdk.current = m));
       })
       .catch(() => undefined);
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then(setHealth)
+      .catch(() => setHealth({ caller: false, intake: false, linked: false }));
     const pending = timers.current;
     return () => {
       pending.forEach(clearTimeout);
@@ -86,8 +118,12 @@ export default function Desk() {
   const addContact = () =>
     setContacts((cs) => [
       ...cs,
-      { id: `c_${Date.now()}`, name: "", phone: "", city: "", truck: form.truck, persona: simPersona(form, cs.length) },
+      { id: `c_${Date.now()}`, name: "", phone: "", city: "", truck: form.truck },
     ]);
+
+  // A row counts once it has a name or a number.
+  const filledContacts = () =>
+    contacts.filter((c) => c.name.trim() || c.phone.trim()).map((c) => (c.name.trim() ? c : { ...c, name: "Owner" }));
 
   function reset() {
     setError(null);
@@ -95,6 +131,16 @@ export default function Desk() {
     timers.current = [];
     if (poll.current) clearInterval(poll.current);
     if (watch.current) clearInterval(watch.current);
+  }
+
+  // Clears the desk for the next load. A call still on the phones carries on
+  // at the server; this only stops the desk watching it.
+  function newLoad() {
+    reset();
+    setLoad(null);
+    setLine(null);
+    setForm(EMPTY_FORM);
+    setHeard([]);
   }
 
   // Keep the desk in step with a load until it settles.
@@ -127,7 +173,12 @@ export default function Desk() {
     e.preventDefault();
     reset();
     setStarting(true);
-    await post({ ...form, contacts: contacts.filter((c) => c.name.trim()), mode });
+    // Every number typed gets a real call, whichever mode is selected.
+    const dialing = config.live && contacts.some((c) => c.phone.trim());
+    if (dialing) setMode("live");
+    // Owners added by hand bargain around the budget in the boxes at this moment.
+    const owners = filledContacts().map((c, i) => ({ ...c, persona: c.persona ?? simPersona(form, i) }));
+    await post({ ...form, contacts: owners, mode: dialing ? "live" : mode });
     setStarting(false);
   }
 
@@ -135,6 +186,8 @@ export default function Desk() {
   function sampleCall() {
     reset();
     setLoad(null);
+    setHeard([]);
+    setForm(DEMO_LOAD);
     const t0 = Date.now();
     const turns: Turn[] = [];
     setLine({ kind: "sample", state: "ringing", turns });
@@ -160,11 +213,16 @@ export default function Desk() {
   function phoneIn() {
     if (!sdk.current) return setError("The calling library is still loading. Try again in a second.");
     reset();
+    const owners = filledContacts().filter((c) => c.phone.trim());
+    const bad = owners.find((c) => !hasPhone(c));
+    if (bad) return setError(`${bad.name} has a phone number that isn't valid: ${bad.phone}. Use 10 digits.`);
     setLoad(null);
+    setForm(EMPTY_FORM);
+    setHeard([]);
     const session = newSession();
     const call = new sdk.current.BolnaWebCall({
       sessionUrl: "/api/bolna/session",
-      userData: { transporter: form.transporter, session_id: session },
+      userData: { transporter: form.transporter, session_id: session, owners: JSON.stringify(owners) },
     });
     webCall.current = call;
     setLine({ kind: "live", state: "connecting", turns: [] });
@@ -181,9 +239,20 @@ export default function Desk() {
     watch.current = setInterval(async () => {
       if (Date.now() > until && watch.current) clearInterval(watch.current);
       const r = await fetch(`/api/loads?session=${session}`).catch(() => null);
-      if (!r?.ok) return;
+      if (!r?.ok) {
+        // Not posted yet: show what the transporter has said so far.
+        const draft = await fetch(`/api/bolna/draft?session=${session}`).catch(() => null);
+        const said = draft?.ok ? await draft.json() : {};
+        setForm((f) => ({ ...f, ...said }));
+        setHeard(Object.keys(said) as (keyof Form)[]);
+        return;
+      }
       const found: Load = await r.json();
       if (watch.current) clearInterval(watch.current);
+      // Show what the transporter said in the form, ready to edit and run again.
+      const { transporter, from, to, pickup, truck, weightTons, target, ceiling } = found;
+      setForm({ transporter, from, to, pickup, truck, weightTons, target, ceiling });
+      setHeard([...DETAILS, "target"]);
       setLoad(found);
       follow(found.id);
     }, 1500);
@@ -195,6 +264,9 @@ export default function Desk() {
   const onLine = line?.kind === "live" && ["connecting", "ringing", "active"].includes(line.state);
   const best = load?.board.findLast((e) => e.kind === "locked" || e.kind === "beat");
   const intake = load?.intake?.length ? load.intake : (line?.turns ?? []);
+  const owners = filledContacts();
+  const realCalls = owners.filter(hasPhone).length;
+  const ready = Boolean(health?.caller && health.intake && health.linked);
 
   return (
     <>
@@ -204,6 +276,18 @@ export default function Desk() {
           <p className="mono">Booking desk</p>
           <h1 className={styles.title}>One call in. Six agents out.</h1>
         </header>
+        <ul className={`${styles.ready} mono`} aria-label="Demo readiness" aria-live="polite">
+          {health ? (
+            <>
+              <li data-ok={health.caller}>Caller agent</li>
+              <li data-ok={health.intake}>Intake agent</li>
+              <li data-ok={health.linked}>Bolna reaches this server</li>
+              <li data-ok={ready}>{ready ? "Ready for real calls" : "Simulated loads only"}</li>
+            </>
+          ) : (
+            <li>Checking agents…</li>
+          )}
+        </ul>
         <div className={styles.window}>
           <div className={styles.form}>
             <section className={styles.group} aria-label="Transporter line">
@@ -226,7 +310,15 @@ export default function Desk() {
                 <button type="button" className={styles.add} onClick={sampleCall} disabled={onLine || calling}>
                   Play a sample call
                 </button>
+                {(load || line) && (
+                  <button type="button" className={styles.add} onClick={newLoad} disabled={onLine}>
+                    New load
+                  </button>
+                )}
               </div>
+              {config.phoneIn.length > 0 && (
+                <p className={styles.hint}>A phone-in also rings {config.phoneIn.join(", ")}.</p>
+              )}
               {!config.intake && (
                 <p className={styles.hint}>Calling from the browser switches on once BOLNA_INTAKE_AGENT_ID is set on the server.</p>
               )}
@@ -236,6 +328,11 @@ export default function Desk() {
                     <span>Transporter line</span>
                     <span>{line ? LINE_LABEL[line.state] : "Phoned in"}</span>
                   </p>
+                  {line?.kind === "live" && (
+                    <p className={`${styles.heardCount} mono`}>
+                      {DETAILS.filter((d) => form[d]).length} of {DETAILS.length} details heard
+                    </p>
+                  )}
                   {intake.length > 0 ? (
                     <ul className={styles.intakeTurns}>
                       {intake.map((t, i) => (
@@ -247,9 +344,11 @@ export default function Desk() {
                     </ul>
                   ) : (
                     <p className={styles.hint}>
-                      {line?.kind === "live"
-                        ? "Speak to Bhaada. The transcript shows up here after the call."
-                        : "Connecting…"}
+                      {line?.state === "connecting" && line.kind === "live"
+                        ? "Connecting… If your browser asks, allow the microphone."
+                        : line?.kind === "live"
+                          ? "Speak to Bhaada. The boxes below fill in as you talk, and the transcript shows up here after the call."
+                          : "Connecting…"}
                     </p>
                   )}
                 </div>
@@ -263,28 +362,29 @@ export default function Desk() {
                 <div className={styles.row}>
                   <label>
                     Pickup
-                    <input value={form.from} onChange={(e) => set("from", e.target.value)} required />
+                    <input data-heard={heard.includes("from")} value={form.from} onChange={(e) => set("from", e.target.value)} required />
                   </label>
                   <label>
                     Drop
-                    <input value={form.to} onChange={(e) => set("to", e.target.value)} required />
+                    <input data-heard={heard.includes("to")} value={form.to} onChange={(e) => set("to", e.target.value)} required />
                   </label>
                 </div>
                 <label>
                   When (as you&apos;d say it on the phone)
-                  <input value={form.pickup} onChange={(e) => set("pickup", e.target.value)} required />
+                  <input data-heard={heard.includes("pickup")} value={form.pickup} onChange={(e) => set("pickup", e.target.value)} required />
                 </label>
                 <div className={styles.row}>
                   <label>
                     Truck
-                    <input value={form.truck} onChange={(e) => set("truck", e.target.value)} required />
+                    <input data-heard={heard.includes("truck")} value={form.truck} onChange={(e) => set("truck", e.target.value)} required />
                   </label>
                   <label>
                     Weight (ton)
                     <input
                       type="number"
                       min={1}
-                      value={form.weightTons}
+                      data-heard={heard.includes("weightTons")}
+                      value={form.weightTons || ""}
                       onChange={(e) => set("weightTons", Number(e.target.value))}
                       required
                     />
@@ -300,7 +400,8 @@ export default function Desk() {
                     <input
                       type="number"
                       step={500}
-                      value={form.target}
+                      data-heard={heard.includes("target")}
+                      value={form.target || ""}
                       onChange={(e) => set("target", Number(e.target.value))}
                       required
                     />
@@ -310,7 +411,8 @@ export default function Desk() {
                     <input
                       type="number"
                       step={500}
-                      value={form.ceiling}
+                      data-heard={heard.includes("ceiling")}
+                      value={form.ceiling || ""}
                       onChange={(e) => set("ceiling", Number(e.target.value))}
                       required
                     />
@@ -338,13 +440,16 @@ export default function Desk() {
                         value={c.city}
                         onChange={(e) => updateContact(c.id, { city: e.target.value })}
                       />
-                      <input
-                        aria-label="Phone"
-                        placeholder={mode === "live" ? "Phone, or blank to simulate" : "Phone"}
-                        inputMode="tel"
-                        value={c.phone}
-                        onChange={(e) => updateContact(c.id, { phone: e.target.value })}
-                      />
+                      <span className={styles.phone}>
+                        <input
+                          aria-label="Phone"
+                          placeholder="Blank to simulate"
+                          inputMode="tel"
+                          value={c.phone}
+                          onChange={(e) => updateContact(c.id, { phone: e.target.value })}
+                        />
+                        {hasPhone(c) && <span className={`${styles.liveTag} mono`}>Live</span>}
+                      </span>
                       <button
                         type="button"
                         className={styles.remove}
@@ -379,9 +484,12 @@ export default function Desk() {
                     Real calls via Bolna
                   </label>
                 </div>
+                <p className={`${styles.callCount} mono`}>
+                  {realCalls} real, {owners.length - realCalls} simulated
+                </p>
                 <p className={styles.hint}>
                   {config.live
-                    ? "Owners with a phone number get a real call. The rest are simulated and share the same agent channel."
+                    ? "Every owner with a phone number gets a real call, in either mode. The rest are simulated and share the same agent channel."
                     : "Real calls switch on once BOLNA_API_KEY and BOLNA_AGENT_ID are set on the server."}
                 </p>
               </fieldset>
@@ -393,7 +501,7 @@ export default function Desk() {
               )}
 
               <button className={styles.start} type="submit" disabled={starting || calling}>
-                {calling ? "Agents on the phones…" : starting ? "Posting…" : `Start ${contacts.length} agents`}
+                {calling ? "Agents on the phones…" : starting ? "Posting…" : `Start ${owners.length} agents`}
               </button>
             </form>
           </div>
@@ -426,17 +534,49 @@ export default function Desk() {
                         Booked {load.booking.ownerName} at {inr(load.booking.rate)}
                       </strong>
                       <span>
-                        {load.booking.vehicle}, {inr(load.booking.savedVsCeiling)} under your max
-                        {load.booking.savedVsFirst > 0 && `, ${inr(load.booking.savedVsFirst)} under the first truck that agreed`},{" "}
-                        {load.booking.seconds}s
+                        {load.from.split(",")[0]} to {load.to}, {load.pickup}
                       </span>
-                      {load.booking.detailsToCheck && <span>Vehicle or driver number unclear. Confirm with the owner.</span>}
+                      <dl className={styles.summary}>
+                        <div>
+                          <dt>Truck</dt>
+                          <dd>{load.truck}</dd>
+                        </div>
+                        <div>
+                          <dt>Vehicle</dt>
+                          <dd>{load.booking.vehicle || "Pending"}</dd>
+                        </div>
+                        <div>
+                          <dt>Driver</dt>
+                          <dd>{load.booking.driverPhone || "Pending"}</dd>
+                        </div>
+                        <div>
+                          <dt>Under your max</dt>
+                          <dd>{inr(load.booking.savedVsCeiling)}</dd>
+                        </div>
+                        {load.booking.savedVsFirst > 0 && (
+                          <div>
+                            <dt>Under the first truck</dt>
+                            <dd>{inr(load.booking.savedVsFirst)}</dd>
+                          </div>
+                        )}
+                        <div>
+                          <dt>Booked in</dt>
+                          <dd>{load.booking.seconds}s</dd>
+                        </div>
+                      </dl>
+                      {load.booking.detailsToCheck && (
+                        <p className={styles.flag}>Vehicle or driver number unclear. Confirm with the owner.</p>
+                      )}
                     </>
                   )}
                   {load.status === "no_truck" && (
                     <>
-                      <strong>No truck within budget</strong>
-                      <span>Raise the maximum or add more owners, then start again.</span>
+                      <strong>{noTruckReason(load)}</strong>
+                      <span>
+                        {noTruckReason(load) === "No truck within budget"
+                          ? "Raise the maximum or add more owners, then start again."
+                          : "The calls ended before anyone agreed a rate. Start again or add more owners."}
+                      </span>
                     </>
                   )}
                 </div>

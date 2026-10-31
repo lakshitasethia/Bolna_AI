@@ -3,6 +3,7 @@
 import { recordLock } from "@/lib/board.ts";
 import { parseRupees, readParams, toolAuthorized } from "@/lib/bolna.ts";
 import { settleAndNotify } from "@/lib/finish.ts";
+import { closeUnreported } from "@/lib/loads.ts";
 import { findCall } from "@/lib/store.ts";
 import { checkDetails } from "@/lib/vehicle.ts";
 import type { CallStatus } from "@/lib/types.ts";
@@ -49,9 +50,13 @@ export async function POST(req: Request) {
     if (fresh) recordLock(load, call, Date.now());
   }
 
-  // Keep "outbid" when the agent reports a decline that the board caused.
-  call.status = status === "too_expensive" && call.status === "outbid" ? "outbid" : status;
-  call.endedAt = Date.now();
+  if (status === "call_later") {
+    closeUnreported(call, Date.now());
+  } else {
+    // Keep "outbid" when the agent reports a decline that the board caused.
+    call.status = status === "too_expensive" && call.status === "outbid" ? "outbid" : status;
+    call.endedAt = Date.now();
+  }
   await settleAndNotify(load);
 
   return Response.json({ ok: true, say: status === "agreed" ? "Dhanyavaad! Das minute mein final confirmation bhejti hoon." : "Dhanyavaad!" });

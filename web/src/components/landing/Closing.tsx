@@ -202,8 +202,8 @@ export default function Closing() {
             <a href="https://www.bolna.ai/">Bolna voice AI</a>
           </div>
           <div className={styles.col}>
-            <p className="mono">Languages</p>
-            <span>Hindi, Hinglish, English</span>
+            <p className="mono">Language</p>
+            <span>Hindi</span>
           </div>
           <div className={styles.col}>
             <p className="mono">Demo lane</p>
