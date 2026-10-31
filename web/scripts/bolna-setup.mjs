@@ -86,6 +86,9 @@ function agentBody({ name, welcome, prompt, tools, webhook, maxSeconds, hints })
           task_config: {
             call_terminate: maxSeconds,
             hangup_after_silence: 15,
+            hangup_after_LLMCall: true,
+            call_cancellation_prompt:
+              "End the call only if the assistant has given its final thanks after the outcome was decided, or the other person has said goodbye. Otherwise keep the call going.",
             incremental_delay: 1200,
             check_if_user_online: true,
             check_user_online_message: "जी, आप सुन रहे हैं?",
