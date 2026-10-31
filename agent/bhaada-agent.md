@@ -26,7 +26,11 @@ transporter ──call──▶ intake agent ──post_load──▶ /api/bolna
 
 ## 1. Run the server where Bolna can reach it
 
-The store is in memory, so run one process and expose it with a free tunnel:
+Production runs on Render at `https://bolna-ai.onrender.com`, and both agents point
+there (see `../HANDOFF.md`). Use that as `PUBLIC_URL` unless you are testing a local
+change. Running the setup script with a tunnel URL repoints the live agents too.
+
+For local work, the store is in memory, so run one process and expose it with a free tunnel:
 
 ```bash
 cd web && npm run dev                           # http://localhost:3000

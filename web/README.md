@@ -5,7 +5,7 @@ Landing page, the `/desk` demo, and the backend Bolna calls during a conversatio
 ```bash
 npm install
 npm run dev      # http://localhost:3000
-npm test         # negotiation + simulation checks, no calls made
+npm test         # price, board, vehicle and simulation checks, no calls made
 ```
 
 ## What's where
@@ -17,6 +17,7 @@ npm test         # negotiation + simulation checks, no calls made
 | `src/lib/loads.ts` | Creates loads (one agent per owner); once every call ends, books the cheapest truck that agreed |
 | `src/lib/board.ts` | The agents' shared board: a locked rate caps every other agent and becomes their leverage |
 | `src/lib/dispatch.ts` | Starts every agent at once: real Bolna calls for owners with a number, simulated for the rest |
+| `src/lib/vehicle.ts` | Validates vehicle and driver numbers, with limited retries |
 | `src/lib/network.ts` | The transporter's owners; real numbers come from `BHAADA_OWNER_PHONES` |
 | `src/app/api/loads` | Post a load (`POST`), find a phoned-in load (`GET ?session=`), poll it (`GET /api/loads/:id`) |
 | `src/app/api/bolna/intake` | Bolna tool `post_load` on the intake agent: the transporter phoned in a load |
@@ -32,5 +33,5 @@ npm test         # negotiation + simulation checks, no calls made
 ## Live calls
 
 Copy `.env.local.example` to `.env.local`, fill in the Bolna keys, and follow
-`../agent/bhaada-agent.md`. The store is in memory, so run a single process
-(local dev plus a tunnel) for the live demo.
+`../agent/bhaada-agent.md`. The store is in memory, so run a single process.
+Production is one Render instance; see `../HANDOFF.md`.
