@@ -3,8 +3,12 @@ import { inr } from "./negotiate.ts";
 import type { Booking, Call, Contact, Load, LoadInput } from "./types.ts";
 import { TERMINAL } from "./types.ts";
 
-let counter = 0;
-const id = (prefix: string) => `${prefix}_${Date.now().toString(36)}${(counter++).toString(36)}`;
+// Random, so a load can't be found by guessing the next id. Web Crypto, because
+// the landing page also builds loads in the browser.
+const id = (prefix: string) => {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return `${prefix}_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+};
 
 export const hasPhone = (c: Contact) => c.phone.replace(/\D/g, "").length >= 10;
 

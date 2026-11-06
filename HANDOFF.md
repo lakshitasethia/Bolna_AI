@@ -35,7 +35,7 @@ The project has been built on free tiers only.
 | Start command | `npm start` |
 | Instance type | Free |
 
-Environment variables on Render: `BOLNA_API_KEY`, `BOLNA_AGENT_ID`, `BOLNA_INTAKE_AGENT_ID`, `BHAADA_TOOL_TOKEN`, `BHAADA_OWNER_PHONES`, and `NODE_VERSION=24`.
+Environment variables on Render: `BOLNA_API_KEY`, `BOLNA_AGENT_ID`, `BOLNA_INTAKE_AGENT_ID`, `BHAADA_TOOL_TOKEN`, `BHAADA_DESK_PASSCODE`, `BHAADA_OWNER_PHONES`, and `NODE_VERSION=24`. Without `BHAADA_DESK_PASSCODE`, real calls and phone-in stay off.
 
 ### Things that will catch you out
 
@@ -43,7 +43,8 @@ Environment variables on Render: `BOLNA_API_KEY`, `BOLNA_AGENT_ID`, `BOLNA_INTAK
 - **The setup script reads `web/.env.local`.** `PUBLIC_URL` there must stay `https://bolna-ai.onrender.com`, or the agents get pointed somewhere else.
 - **Every Render restart wipes all loads.** Sleeping and deploying both restart it, so don't push during a live call. After a restart, a call still in progress gets "Unknown load or call" from the tools.
 - **The site sleeps when idle.** The first request took 46 seconds when measured on 31 Oct. Open the site a minute or two before a demo.
-- **`BHAADA_TOOL_TOKEN` must match.** The setup script stores it in the agents' tools, and Render checks it. Change it in both places, or every tool call returns 401.
+- **`BHAADA_TOOL_TOKEN` must match.** The setup script stores it in the agents' tools and in their webhook URL (`?token=`), and Render checks both. Change it in both places and re-run the setup script, or every tool call and webhook returns 401 and live loads never finish.
+- **Real calls need the desk passcode.** The desk asks for `BHAADA_DESK_PASSCODE` before it lets you phone in or call a typed number. It is kept in that browser tab only.
 
 ## Access you will need
 
@@ -132,12 +133,14 @@ The full real call took 110 seconds. One clean call shows the flow can work, not
 
 ### 1. Before sharing the link widely
 
-The site is public and has no login. This matters more than anything else on this list.
+The site is public with no accounts. The four gaps found on 31 Oct were closed on 6 Nov, in `web/src/lib/access.ts`:
 
-- **Anyone can place calls.** `POST /api/loads` with `mode: "live"` and `POST /api/bolna/session` need no auth, so a visitor can ring phones and spend Bolna credits. A passcode on these two routes was planned but not added.
-- **Load data is exposed.** Load responses include owners' phone numbers and the transporter's maximum rate. Anyone who gets a load can read them, so a phoned-in load exposes the numbers in `BHAADA_OWNER_PHONES`. Strip these fields from what the browser receives.
-- **The webhook has no auth.** Anyone with an execution id could change a call's status.
-- **The tool check fails open.** `toolAuthorized` allows everything if `BHAADA_TOOL_TOKEN` is unset. It should refuse instead.
+- **Real calls and phone-in need `BHAADA_DESK_PASSCODE`.** `POST /api/loads` with `mode: "live"` and `POST /api/bolna/session` refuse without it, and stay off if it isn't set. Simulated loads are still open, so anyone can try the demo for free.
+- **The browser gets a stripped load.** Owners' numbers are masked to the last four digits. Bolna execution ids, the simulator's price limits, the desk session and the transporter's number are dropped. Load, call and desk session ids are random, so the maximum rate is only visible to whoever posted the load.
+- **The webhook needs the tool token** in its URL, which `bolna-setup.mjs` adds.
+- **Tool calls fail closed.** An unset `BHAADA_TOOL_TOKEN` now refuses every call.
+
+Still open: no per-user accounts, and no rate limit on simulated loads. The store keeps the newest 500 loads, dropping finished ones first.
 
 ### 2. Test on real calls
 

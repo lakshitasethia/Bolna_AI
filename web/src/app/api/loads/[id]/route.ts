@@ -1,3 +1,4 @@
+import { publicLoad } from "@/lib/access.ts";
 import { settleAndNotify } from "@/lib/finish.ts";
 import { advance } from "@/lib/simulate.ts";
 import { getLoad } from "@/lib/store.ts";
@@ -11,5 +12,5 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   advance(load);
   if (wasCalling) await settleAndNotify(load);
 
-  return Response.json(load);
+  return Response.json(publicLoad(load));
 }

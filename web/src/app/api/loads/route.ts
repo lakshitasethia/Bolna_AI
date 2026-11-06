@@ -1,3 +1,4 @@
+import { deskAuthorized, isDeskSession, passcodeSet, publicLoad } from "@/lib/access.ts";
 import { bolnaConfigured } from "@/lib/bolna.ts";
 import { dispatch } from "@/lib/dispatch.ts";
 import { createLoad, hasPhone } from "@/lib/loads.ts";
@@ -7,21 +8,30 @@ import type { LoadInput } from "@/lib/types.ts";
 // The desk polls this after a phone-in, to find the load the transporter just posted.
 export async function GET(req: Request) {
   const session = new URL(req.url).searchParams.get("session");
-  const load = session ? latestForSession(session) : undefined;
-  return load ? Response.json(load) : Response.json({ error: "No load yet." }, { status: 404 });
+  const load = isDeskSession(session) ? latestForSession(session) : undefined;
+  return load ? Response.json(publicLoad(load)) : Response.json({ error: "No load yet." }, { status: 404 });
 }
 
 export async function POST(req: Request) {
   const input = (await req.json().catch(() => null)) as LoadInput | null;
   const problem = validate(input);
   if (problem) return Response.json({ error: problem }, { status: 400 });
+  // Real calls ring real phones and spend Bolna credits, so they need the desk passcode.
+  if (input!.mode === "live") {
+    if (!passcodeSet()) {
+      return Response.json({ error: "Real calls are off: set BHAADA_DESK_PASSCODE on the server." }, { status: 503 });
+    }
+    if (!deskAuthorized(req)) {
+      return Response.json({ error: "Enter the desk passcode to place real calls." }, { status: 401 });
+    }
+  }
 
   const load = createLoad(input!);
   saveLoad(load);
 
   await dispatch(load);
 
-  return Response.json(load, { status: 201 });
+  return Response.json(publicLoad(load), { status: 201 });
 }
 
 function validate(input: LoadInput | null): string | null {

@@ -1,5 +1,6 @@
 // Bolna custom function `save_details`: the intake agent calls this as the
 // transporter talks, and the desk polls it to fill the form during the call.
+import { isDeskSession } from "@/lib/access.ts";
 import { readParams, toolAuthorized } from "@/lib/bolna.ts";
 import { draftFrom } from "@/lib/draft.ts";
 import { draftForSession, saveDraft } from "@/lib/store.ts";
@@ -15,5 +16,5 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   const session = new URL(req.url).searchParams.get("session");
-  return Response.json(session ? draftForSession(session) : {});
+  return Response.json(isDeskSession(session) ? draftForSession(session) : {});
 }

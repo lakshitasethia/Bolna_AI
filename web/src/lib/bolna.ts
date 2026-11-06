@@ -59,11 +59,7 @@ export function toE164(phone: string) {
 }
 
 // Bolna custom functions send a bearer token we choose (BHAADA_TOOL_TOKEN).
-export function toolAuthorized(req: Request) {
-  const token = process.env.BHAADA_TOOL_TOKEN;
-  if (!token) return true;
-  return req.headers.get("authorization") === `Bearer ${token}`;
-}
+export { toolAuthorized } from "./access.ts";
 
 // Tool params can arrive as a JSON body or a query string; accept both.
 export async function readParams(req: Request): Promise<Record<string, string>> {
