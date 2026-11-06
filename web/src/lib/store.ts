@@ -29,7 +29,17 @@ export const saveDraft = (session: string, draft: LoadDraft) =>
   void drafts.set(session, { ...drafts.get(session), ...draft });
 export const draftForSession = (session: string) => drafts.get(session) ?? {};
 
-export const saveLoad = (load: Load) => void loads.set(load.id, load);
+// The site is public and simulated loads are free to post, so keep only the
+// newest ones. Finished loads go first, so a flood of simulated loads can't
+// drop one whose calls are still on the phones. Maps keep insertion order.
+export const MAX_LOADS = 500;
+export function saveLoad(load: Load) {
+  loads.set(load.id, load);
+  while (loads.size > MAX_LOADS) {
+    const oldest = [...loads.values()].find((l) => l.status !== "calling") ?? loads.values().next().value!;
+    loads.delete(oldest.id);
+  }
+}
 export const getLoad = (id: string) => loads.get(id);
 
 export function findCall(loadId: string, callId: string): { load: Load; call: Call } | undefined {

@@ -579,3 +579,15 @@
     grid-row: 2;
   }
 }
+
+/* Passcode for real calls and phone-in. */
+.unlock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.unlock .hint {
+  grid-column: 1 / -1;
+}

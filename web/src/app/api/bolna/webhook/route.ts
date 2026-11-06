@@ -1,4 +1,5 @@
 // Bolna agent webhook: call status updates and the final transcript.
+import { webhookAuthorized } from "@/lib/access.ts";
 import { settleAndNotify } from "@/lib/finish.ts";
 import { closeUnreported, isDone } from "@/lib/loads.ts";
 import { findCallByExecution, intakeSession, latestForSession } from "@/lib/store.ts";
@@ -12,6 +13,8 @@ interface Execution {
 }
 
 export async function POST(req: Request) {
+  // The token rides in the webhook URL that bolna-setup.mjs gives the agents.
+  if (!webhookAuthorized(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
   const body = (await req.json().catch(() => null)) as Execution | null;
   const executionId = body?.execution_id ?? body?.id;
   const found = executionId ? findCallByExecution(executionId) : undefined;

@@ -129,13 +129,15 @@ const print = process.argv.includes("--print");
 
 if (!host.startsWith("https://")) throw new Error("Set PUBLIC_URL to the https tunnel or deploy URL, e.g. https://abc.trycloudflare.com");
 if (!token) throw new Error("Set BHAADA_TOOL_TOKEN (any long random string) so Bolna's tool calls are authenticated");
+// Bolna's webhook can't send headers, so the token rides in the URL. The server rejects webhooks without it.
+const webhook = `${host}/api/bolna/webhook?token=${encodeURIComponent(token)}`;
 
 const caller = agentBody({
   name: "Bhaada caller",
   welcome: CALLER_WELCOME,
   prompt: CALLER_PROMPT,
   tools: callerTools(host, token),
-  webhook: `${host}/api/bolna/webhook`,
+  webhook,
   maxSeconds: 240,
   hints: {
     context:
@@ -148,7 +150,7 @@ const intake = agentBody({
   welcome: INTAKE_WELCOME,
   prompt: INTAKE_PROMPT,
   tools: intakeTools(host, token),
-  webhook: `${host}/api/bolna/webhook`,
+  webhook,
   maxSeconds: 240,
   hints: {
     context:

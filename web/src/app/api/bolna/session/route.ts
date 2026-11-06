@@ -1,5 +1,6 @@
 // Mints a one-time Bolna web call session for the intake agent, so a
 // transporter can phone in from the desk without a phone number.
+import { deskAuthorized, passcodeSet } from "@/lib/access.ts";
 import { intakeConfigured } from "@/lib/bolna.ts";
 import { hasPhone } from "@/lib/loads.ts";
 import { rememberIntakeRun, rememberOwners } from "@/lib/store.ts";
@@ -9,6 +10,11 @@ export async function POST(req: Request) {
   if (!intakeConfigured()) {
     return Response.json({ error: "Phone-in needs BOLNA_API_KEY and BOLNA_INTAKE_AGENT_ID on the server." }, { status: 503 });
   }
+  // A phone-in spends Bolna credits and the load it posts rings real owners.
+  if (!passcodeSet()) {
+    return Response.json({ error: "Phone-in is off: set BHAADA_DESK_PASSCODE on the server." }, { status: 503 });
+  }
+  if (!deskAuthorized(req)) return Response.json({ error: "Enter the desk passcode to phone in." }, { status: 401 });
   const { user_data } = ((await req.json().catch(() => ({}))) ?? {}) as { user_data?: Record<string, string> };
   // Numbers typed on the desk stay on this server; the voice agent never needs them.
   const { owners, ...agentData } = user_data ?? {};

@@ -123,7 +123,8 @@ For real calls, copy `web/.env.local.example` to `web/.env.local` and follow [ag
 | `BOLNA_API_KEY` | Server, setup script | Bolna account key |
 | `BOLNA_AGENT_ID` | Server, setup script | Caller agent id |
 | `BOLNA_INTAKE_AGENT_ID` | Server, setup script | Intake agent id |
-| `BHAADA_TOOL_TOKEN` | Server, setup script | Shared secret on Bolna's tool calls. It must match on both sides |
+| `BHAADA_TOOL_TOKEN` | Server, setup script | Shared secret on Bolna's tool calls and webhook. It must match on both sides. Unset, the server refuses every tool call and webhook |
+| `BHAADA_DESK_PASSCODE` | Server | Passcode the desk asks for before real calls or a phone-in. Unset, both stay off. Simulated loads never need it |
 | `BHAADA_OWNER_PHONES` | Server | Real owners, as `phone` or `Name:phone`, comma-separated. Filled in order over the demo owners |
 | `PUBLIC_URL` | Setup script only | The https address Bolna should call |
 | `BHAADA_TTS_VOICE` | Setup script only | Custom TTS voice name. Empty uses Sarvam |
@@ -135,20 +136,20 @@ For real calls, copy `web/.env.local.example` to `web/.env.local` and follow [ag
 
 | Route | Called by | Auth | Purpose |
 |---|---|---|---|
-| `POST /api/loads` | Desk | None | Post a load and start its agents |
-| `GET /api/loads?session=` | Desk | None | Find a load that was phoned in |
-| `GET /api/loads/:id` | Desk | None | Poll a load, which also advances simulated calls |
-| `GET /api/config` | Desk | None | Report whether live calls and phone-in are available |
+| `POST /api/loads` | Desk | Passcode for `mode: "live"`, none for simulated | Post a load and start its agents |
+| `GET /api/loads?session=` | Desk | Random desk session id | Find a load that was phoned in |
+| `GET /api/loads/:id` | Desk | Random load id | Poll a load, which also advances simulated calls |
+| `GET /api/config` | Desk | None. The passcode adds which phones a phone-in rings | Report whether live calls and phone-in are available |
 | `GET /api/health` | Desk | None | Check both agents exist and Bolna reaches this server |
-| `POST /api/bolna/session` | Desk | None | Start a browser call to the intake agent |
+| `POST /api/bolna/session` | Desk | Passcode | Start a browser call to the intake agent |
 | `POST /api/bolna/intake` | Bolna, `post_load` | Tool token | Create a load from a phone-in and **dial the real owners** |
 | `POST /api/bolna/draft` | Bolna, `save_details` | Tool token | Save what the transporter has said so far |
-| `GET /api/bolna/draft?session=` | Desk | None | Fill the form during a phone-in |
+| `GET /api/bolna/draft?session=` | Desk | Random desk session id | Fill the form during a phone-in |
 | `POST /api/bolna/quote` | Bolna, `submit_quote` | Tool token | Return accept, counter, decline or ask again |
 | `POST /api/bolna/outcome` | Bolna, `report_outcome` | Tool token | Validate and record how a call ended |
-| `POST /api/bolna/webhook` | Bolna | None | Receive call status and transcripts |
+| `POST /api/bolna/webhook` | Bolna | Tool token in the URL's `?token=` | Receive call status and transcripts |
 
-The routes with no auth are a known gap. See [HANDOFF.md](HANDOFF.md#1-before-sharing-the-link-widely).
+Every check fails closed: an unset secret refuses everyone. Loads reach the browser through `publicLoad` in `web/src/lib/access.ts`, which masks owners' phone numbers and drops Bolna execution ids, the simulator's price limits, the desk session and the transporter's number. Load and call ids are random, so one load can't be found from another's id.
 
 ## Status
 

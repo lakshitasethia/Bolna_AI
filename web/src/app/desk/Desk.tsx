@@ -64,7 +64,37 @@ interface Health {
   linked: boolean;
 }
 
-const newSession = () => `desk_${Math.random().toString(36).slice(2, 10)}`;
+// Long and random: the server only hands a phone-in's load to whoever holds its session.
+const newSession = () =>
+  `desk_${Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("")}`;
+
+// The passcode stays in this tab only, and the desk still works if storage is blocked.
+const PASSCODE_KEY = "bhaada-desk-passcode";
+const storedPasscode = () => {
+  try {
+    return sessionStorage.getItem(PASSCODE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+const storePasscode = (value: string) => {
+  try {
+    sessionStorage.setItem(PASSCODE_KEY, value);
+  } catch {}
+};
+
+interface Config {
+  live: boolean;
+  intake: boolean;
+  unlocked: boolean;
+  phoneIn: string[];
+}
+
+async function fetchConfig(passcode: string): Promise<Config | null> {
+  const r = await fetch("/api/config", { headers: passcode ? { "x-bhaada-passcode": passcode } : {} }).catch(() => null);
+  const c = r?.ok ? ((await r.json().catch(() => null)) as Partial<Config> | null) : null;
+  return c ? { live: Boolean(c.live), intake: Boolean(c.intake), unlocked: Boolean(c.unlocked), phoneIn: c.phoneIn ?? [] } : null;
+}
 
 // How long the desk waits for a sleeping server. It has taken up to 46 seconds.
 const WAKE_MS = 90_000;
@@ -72,11 +102,8 @@ const WAKE_MS = 90_000;
 export default function Desk() {
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [contacts, setContacts] = useState<Contact[]>(DEMO_CONTACTS);
-  const [config, setConfig] = useState<{ live: boolean; intake: boolean; phoneIn: string[] }>({
-    live: false,
-    intake: false,
-    phoneIn: [],
-  });
+  const [config, setConfig] = useState<Config>({ live: false, intake: false, unlocked: false, phoneIn: [] });
+  const [passcode, setPasscode] = useState("");
   const [health, setHealth] = useState<Health | null>(null);
   const [heard, setHeard] = useState<(keyof Form)[]>([]);
   const [mode, setMode] = useState<"sim" | "live">("sim");
@@ -96,11 +123,10 @@ export default function Desk() {
     async function connect() {
       // The server sleeps when idle and can take a minute to wake, so keep asking.
       const until = Date.now() + WAKE_MS;
-      let c: { live: boolean; intake: boolean; phoneIn?: string[] } | null = null;
+      const saved = storedPasscode();
+      let c: Config | null = null;
       while (left && !c && Date.now() < until) {
-        c = await fetch("/api/config")
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null);
+        c = await fetchConfig(saved);
         if (!c) await new Promise((done) => setTimeout(done, 3000));
       }
       if (!left) return;
@@ -108,7 +134,8 @@ export default function Desk() {
         setHealth({ caller: false, intake: false, linked: false });
         return setError("The server isn't answering. Refresh in a minute to try again.");
       }
-      setConfig({ ...c, phoneIn: c.phoneIn ?? [] });
+      setConfig(c);
+      if (c.unlocked) setPasscode(saved);
       // Load the SDK early: start() has to run inside the click, with no await before it.
       if (c.intake) import("@bolna/web-call").then((m) => (sdk.current = m));
       fetch("/api/health")
@@ -126,6 +153,20 @@ export default function Desk() {
       void webCall.current?.stop();
     };
   }, []);
+
+  // Real calls and phone-in ring real phones, so the server asks for the desk passcode.
+  async function unlock(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const c = await fetchConfig(passcode.trim());
+    if (!c) return setError("Couldn't reach the server. Try again in a minute.");
+    if (!c.unlocked) return setError("That passcode isn't right.");
+    storePasscode(passcode.trim());
+    setConfig(c);
+  }
+
+  const withPasscode = (): Record<string, string> =>
+    config.unlocked && passcode.trim() ? { "x-bhaada-passcode": passcode.trim() } : {};
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -184,7 +225,7 @@ export default function Desk() {
   async function post(body: object) {
     const res = await fetch("/api/loads", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...withPasscode() },
       body: JSON.stringify(body),
     }).catch(() => null);
     if (!res) return setError("Couldn't reach the server. Check that it's running and try again.");
@@ -200,7 +241,7 @@ export default function Desk() {
     reset();
     setStarting(true);
     // Every number typed gets a real call, whichever mode is selected.
-    const dialing = config.live && contacts.some((c) => c.phone.trim());
+    const dialing = canDial && contacts.some((c) => c.phone.trim());
     if (dialing) setMode("live");
     // Owners added by hand bargain around the budget in the boxes at this moment.
     const owners = filledContacts().map((c, i) => ({ ...c, persona: c.persona ?? simPersona(form, i) }));
@@ -246,9 +287,17 @@ export default function Desk() {
     setForm(EMPTY_FORM);
     setHeard([]);
     const session = newSession();
+    const userData = { transporter: form.transporter, session_id: session, owners: JSON.stringify(owners) };
+    const headers = { "Content-Type": "application/json", ...withPasscode() };
     const call = new sdk.current.BolnaWebCall({
-      sessionUrl: "/api/bolna/session",
-      userData: { transporter: form.transporter, session_id: session, owners: JSON.stringify(owners) },
+      // Minted by our server, which checks the desk passcode first.
+      getSession: async () => {
+        const res = await fetch("/api/bolna/session", { method: "POST", headers, body: JSON.stringify({ user_data: userData }) });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error ?? `The server returned ${res.status}`);
+        return body;
+      },
+      userData,
     });
     webCall.current = call;
     setLine({ kind: "live", state: "connecting", turns: [] });
@@ -291,7 +340,10 @@ export default function Desk() {
   const best = load?.board.findLast((e) => e.kind === "locked" || e.kind === "beat");
   const intake = load?.intake?.length ? load.intake : (line?.turns ?? []);
   const owners = filledContacts();
-  const realCalls = owners.filter(hasPhone).length;
+  const canDial = config.live && config.unlocked;
+  const canPhoneIn = config.intake && config.unlocked;
+  const locked = (config.live || config.intake) && !config.unlocked;
+  const realCalls = canDial ? owners.filter(hasPhone).length : 0;
   const ready = Boolean(health?.caller && health.intake && health.linked);
 
   return (
@@ -329,7 +381,7 @@ export default function Desk() {
                     Hang up
                   </button>
                 ) : (
-                  <button type="button" className={styles.call} onClick={phoneIn} disabled={!config.intake || calling}>
+                  <button type="button" className={styles.call} onClick={phoneIn} disabled={!canPhoneIn || calling}>
                     Call Bhaada
                   </button>
                 )}
@@ -345,8 +397,28 @@ export default function Desk() {
               {config.phoneIn.length > 0 && (
                 <p className={styles.hint}>A phone-in also rings {config.phoneIn.join(", ")}.</p>
               )}
+              {locked && (
+                <form className={styles.unlock} onSubmit={unlock}>
+                  <label>
+                    Desk passcode
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={passcode}
+                      onChange={(e) => setPasscode(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <button type="submit" className={styles.add}>
+                    Unlock real calls
+                  </button>
+                  <p className={styles.hint}>Phoning in and real calls ring real phones, so they need the passcode. Simulated loads don&apos;t.</p>
+                </form>
+              )}
               {!config.intake && (
-                <p className={styles.hint}>Calling from the browser switches on once BOLNA_INTAKE_AGENT_ID is set on the server.</p>
+                <p className={styles.hint}>
+                  Calling from the browser switches on once BOLNA_INTAKE_AGENT_ID and BHAADA_DESK_PASSCODE are set on the server.
+                </p>
               )}
               {(line || intake.length > 0) && (
                 <div className={styles.intake}>
@@ -474,7 +546,7 @@ export default function Desk() {
                           value={c.phone}
                           onChange={(e) => updateContact(c.id, { phone: e.target.value })}
                         />
-                        {hasPhone(c) && <span className={`${styles.liveTag} mono`}>Live</span>}
+                        {canDial && hasPhone(c) && <span className={`${styles.liveTag} mono`}>Live</span>}
                       </span>
                       <button
                         type="button"
@@ -499,12 +571,12 @@ export default function Desk() {
                     <input type="radio" name="mode" checked={mode === "sim"} onChange={() => setMode("sim")} />
                     Simulated owners
                   </label>
-                  <label data-checked={mode === "live"} data-disabled={!config.live}>
+                  <label data-checked={mode === "live"} data-disabled={!canDial}>
                     <input
                       type="radio"
                       name="mode"
                       checked={mode === "live"}
-                      disabled={!config.live}
+                      disabled={!canDial}
                       onChange={() => setMode("live")}
                     />
                     Real calls via Bolna
@@ -514,9 +586,11 @@ export default function Desk() {
                   {realCalls} real, {owners.length - realCalls} simulated
                 </p>
                 <p className={styles.hint}>
-                  {config.live
+                  {canDial
                     ? "Every owner with a phone number gets a real call, in either mode. The rest are simulated and share the same agent channel."
-                    : "Real calls switch on once BOLNA_API_KEY and BOLNA_AGENT_ID are set on the server."}
+                    : config.live
+                      ? "Unlock with the desk passcode above to call the numbers you type. Until then, every owner is simulated."
+                      : "Real calls switch on once BOLNA_API_KEY, BOLNA_AGENT_ID and BHAADA_DESK_PASSCODE are set on the server."}
                 </p>
               </fieldset>
 
